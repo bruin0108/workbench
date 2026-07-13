@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head>
+<body style="font-family:monospace;padding:20px">
+<h3>诊断测试</h3>
+<button onclick="test1()">XMLHttpRequest 方式</button>
+<button onclick="test2()">fetch 方式</button>
+<button onclick="test3()">fetch 本地文件</button>
+<pre id="out" style="background:#eee;padding:15px;margin-top:10px"></pre>
+<script>
+const out=document.getElementById('out')
+function log(s){out.textContent+=s+'\n'}
+async function test1(){
+  out.textContent=''
+  log('XMLHttpRequest 测试...')
+  const x=new XMLHttpRequest()
+  x.open('GET','/api/ai/hello?model=openai')
+  x.timeout=15000
+  x.onload=()=>log('状态:'+x.status+'\n回复:'+x.responseText.substring(0,200))
+  x.onerror=()=>log('XHR 错误: '+x.status)
+  x.ontimeout=()=>log('XHR 超时')
+  x.send()
+}
+async function test2(){
+  out.textContent=''
+  log('fetch 测试...')
+  try{
+    const r=await fetch('/api/ai/hello?model=openai')
+    log('状态:'+r.status+'\n回复:'+(await r.text()).substring(0,200))
+  }catch(e){log('fetch 错误: '+e.message)}
+}
+async function test3(){
+  out.textContent=''
+  log('fetch 本地测试...')
+  try{
+    const r=await fetch('/proxy-test.html')
+    log('状态:'+r.status+'\n长度:'+(await r.text()).length+' 字节')
+  }catch(e){log('fetch 错误: '+e.message)}
+}
+</script>
+</body></html>
