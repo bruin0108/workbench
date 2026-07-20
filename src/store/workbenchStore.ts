@@ -55,6 +55,7 @@ interface WorkbenchState {
 
   exportData: () => string
   importData: (json: string) => boolean
+  mergeFromCloud: (json: string) => boolean
   resetData: () => void
   copyToClipboard: () => number
   pasteFromClipboard: () => Promise<boolean>
@@ -125,6 +126,27 @@ function loadFromStorage(): { pages: Record<string, Card[]>; projects: Project[]
     }
   } catch { /* ignore */ }
   return null
+}
+
+// 按 id 合并数组（本地优先，云端补本地没有的）
+function unionById<T extends { id: string }>(local: T[], cloud: T[]): T[] {
+  const byId = new Map(local.map((x) => [x.id, x]))
+  const out = [...local]
+  for (const c of cloud) {
+    if (!byId.has(c.id)) out.push(c)
+  }
+  return out
+}
+
+// 按 time|text 去重合并活动流
+function unionByTime(local: any[], cloud: any[]): any[] {
+  const seen = new Set(local.map((x) => (x.time || '') + '|' + (x.text || '')))
+  const out = [...local]
+  for (const c of cloud) {
+    const key = (c.time || '') + '|' + (c.text || '')
+    if (!seen.has(key)) { seen.add(key); out.push(c) }
+  }
+  return out
 }
 
 function migrateData(data: { pages: Record<string, Card[]>; projects: Project[]; activity: Activity[]; _version?: number }): boolean {
@@ -846,10 +868,19 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
       if (raw) {
         const data = JSON.parse(raw)
         const today = todayStr()
-        const tasks = data.tasks?.date === today ? data.tasks : { date: today, morning: false, noon: false, eveningJournal: false, eveningNce: false, eveningPhilosophy: false, eveningCoach: false, reading: false, review: false, exercise: false, notes: '' }
+        const storedTasks = data.tasks
+        let history = data.history || []
+        let tasks
+        if (storedTasks?.date === today) {
+          tasks = storedTasks
+        } else {
+          // 跨天：先把昨天（storedTasks）的打卡归档进历史，再重置为今天，避免记录丢失
+          if (storedTasks?.date) history = [...history, { ...storedTasks }]
+          tasks = { date: today, morning: false, noon: false, eveningJournal: false, eveningNce: false, eveningPhilosophy: false, eveningCoach: false, reading: false, review: false, exercise: false, notes: '' }
+        }
         set({
           dailyTasks: tasks,
-          dailyTaskHistory: data.history || [],
+          dailyTaskHistory: history,
         })
       }
     } catch { /* ignore */ }
@@ -933,7 +964,13 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
   },
 
   getDailyStats: () => {
-    const history = get().dailyTaskHistory
+    // 把"今天"的实时打卡状态并入历史，使完成率/连续天数即时反映当日进度
+    const history = [...get().dailyTaskHistory]
+    const todayObj = get().getTodayTasks()
+    const td = todayObj.date
+    const idx = history.findIndex((h) => h.date === td)
+    if (idx >= 0) history[idx] = todayObj
+    else history.push(todayObj)
     const total = history.length
     if (total === 0) return { total: 0, streak: 0, rate: 0 }
     const TASK_KEYS = ['morning', 'noon', 'eveningJournal', 'eveningNce', 'eveningPhilosophy', 'eveningCoach', 'reading', 'review', 'exercise'] as const
@@ -1209,6 +1246,73 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
         set({ pages: data.pages })
         saveToStorage({ pages: data.pages, projects: data.projects || [], activity: data.activity || [], pageTitles: data.pageTitles || {}, pageOrder: data.pageOrder || {} })
       } catch { /* ignore */ }
+      return true
+    } catch {
+      return false
+    }
+  },
+
+  // 跨设备合并导入：云端与本地做并集（卡片按 id 合并、条目去重合并），避免拉取时覆盖本地已有内容
+  mergeFromCloud: (json: string) => {
+    try {
+      const data = JSON.parse(json)
+      if (!data.pages) return false
+      const cur = get()
+      // ---- pages: 并集卡片，条目去重合并 ----
+      const mergedPages: Record<string, Card[]> = { ...cur.pages }
+      for (const [pid, cloudCards] of Object.entries(data.pages as Record<string, Card[]>)) {
+        const localCards = mergedPages[pid] || []
+        const byId = new Map(localCards.map((c) => [c.id, c]))
+        const out = [...localCards]
+        for (const cc of cloudCards as Card[]) {
+          const ex = byId.get(cc.id)
+          if (!ex) {
+            out.push(cc)
+          } else {
+            const seen = new Set((ex.entries || []).map((e) => JSON.stringify(e)))
+            const entries = [...(ex.entries || [])]
+            for (const e of (cc.entries || [])) {
+              const k = JSON.stringify(e)
+              if (!seen.has(k)) { seen.add(k); entries.push(e) }
+            }
+            const idx = out.findIndex((c) => c.id === cc.id)
+            if (idx >= 0) out[idx] = { ...ex, entries }
+          }
+        }
+        mergedPages[pid] = out
+      }
+      // ---- chatHistory: 按 key 并集，消息多的一方优先 ----
+      const mergedChat: Record<string, unknown> = {}
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i)
+        if (k && k.startsWith('wb_chat_')) {
+          try { mergedChat[k] = JSON.parse(localStorage.getItem(k) || '[]') } catch { /* ignore */ }
+        }
+      }
+      for (const [k, v] of Object.entries(data.chatHistory || {})) {
+        const lv = mergedChat[k]
+        const llen = Array.isArray(lv) ? lv.length : 0
+        const clen = Array.isArray(v) ? (v as unknown[]).length : 0
+        if (!lv || clen > llen) mergedChat[k] = v
+      }
+      for (const [k, v] of Object.entries(mergedChat)) {
+        try { localStorage.setItem(k, JSON.stringify(v)) } catch { /* ignore */ }
+      }
+      // ---- projects / activity: 并集 ----
+      const mergedProjects = unionById(cur.projects, data.projects || [])
+      const mergedActivity = unionByTime(cur.activity, data.activity || [])
+      const pageTitles = Object.keys(data.pageTitles || {}).length ? data.pageTitles : cur.pageTitles
+      const pageOrder = Object.keys(data.pageOrder || {}).length ? data.pageOrder : cur.pageOrder
+      set({ pages: mergedPages, projects: mergedProjects, activity: mergedActivity, pageTitles, pageOrder })
+      saveToStorage({ pages: mergedPages, projects: mergedProjects, activity: mergedActivity, pageTitles, pageOrder })
+      // 每日任务：仅当本地缺失时补充
+      if (data.dailyTaskData) {
+        try {
+          for (const [k, v] of Object.entries(data.dailyTaskData)) {
+            if (!localStorage.getItem(k)) localStorage.setItem(k, JSON.stringify(v))
+          }
+        } catch { /* ignore */ }
+      }
       return true
     } catch {
       return false

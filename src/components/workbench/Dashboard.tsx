@@ -453,6 +453,14 @@ export default function WorkbenchDashboard() {
 
   const todayTasks = getTodayTasks()
   const stats = getDailyStats()
+  // 把"今天"的实时打卡状态并入历史，让下方所有图表即时反映当日进度
+  const effectiveHistory = useMemo(() => {
+    const base = dailyTaskHistory || []
+    const td = todayTasks?.date
+    if (!td) return base
+    const withoutToday = base.filter((h) => h.date !== td)
+    return [...withoutToday, todayTasks]
+  }, [dailyTaskHistory, todayTasks])
   const [userName, setUserName] = useState(getUserName)
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState(userName)
@@ -490,15 +498,15 @@ export default function WorkbenchDashboard() {
   const [lastSaved, setLastSaved] = useState('')
 
   const dailyTasks = [
-    { key: 'morning', icon: '☀️', label: '早上跟读', time: '20min', task: dailyTaskContent.morning },
-    { key: 'eveningNce', icon: '🪨', label: '新概念', time: '30min', task: dailyTaskContent.eveningNce },
-    { key: 'eveningCoach', icon: '🪨', label: 'AI 教练', time: '15min', task: dailyTaskContent.eveningCoach },
-    { key: 'noon', icon: '🪨', label: 'Anki', time: '15min', task: dailyTaskContent.noon },
-    { key: 'eveningJournal', icon: '💧', label: '外刊精读', time: '20min', task: dailyTaskContent.eveningJournal },
-    { key: 'eveningPhilosophy', icon: '💧', label: '哲学简史', time: '30min', task: dailyTaskContent.eveningPhilosophy },
-    { key: 'reading', icon: '📖', label: '阅读', time: '30min', task: dailyTaskContent.reading },
+    { key: 'morning', icon: '☀️', label: '早上跟读', time: '1课', task: dailyTaskContent.morning },
+    { key: 'eveningNce', icon: '🪨', label: '新概念', time: '1课', task: dailyTaskContent.eveningNce },
+    { key: 'eveningCoach', icon: '🪨', label: 'AI 教练', time: '1轮', task: dailyTaskContent.eveningCoach },
+    { key: 'noon', icon: '🪨', label: 'Anki', time: '20词', task: dailyTaskContent.noon },
+    { key: 'eveningJournal', icon: '💧', label: '外刊精读', time: '1篇泛读', task: dailyTaskContent.eveningJournal },
+    { key: 'eveningPhilosophy', icon: '💧', label: '哲学简史', time: '1章', task: dailyTaskContent.eveningPhilosophy },
+    { key: 'reading', icon: '📖', label: '阅读', time: '1章', task: dailyTaskContent.reading },
     { key: 'exercise', icon: '🏃', label: '运动', time: '30min', task: dailyTaskContent.exercise },
-    { key: 'review', icon: '📝', label: '复盘', time: '10min', task: dailyTaskContent.review },
+    { key: 'review', icon: '📝', label: '复盘', time: '1篇', task: dailyTaskContent.review },
   ]
 
   const startEdit = (key: string) => {
@@ -644,7 +652,7 @@ export default function WorkbenchDashboard() {
       </div>
 
       {/* Morning Check-in */}
-      <MorningCheckin history={dailyTaskHistory} />
+      <MorningCheckin history={effectiveHistory} />
 
       {/* Daily Quote */}
       {dailyQuote && (
@@ -762,16 +770,16 @@ export default function WorkbenchDashboard() {
       </div>
 
       {/* Weekly Insight */}
-      <WeeklyInsight history={dailyTaskHistory} />
+      <WeeklyInsight history={effectiveHistory} />
 
       {/* Trend Chart + Daily Summary — 2 columns */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-        <TrendChart history={dailyTaskHistory} />
-        <DailySummary history={dailyTaskHistory} stats={stats} pages={pages} />
+        <TrendChart history={effectiveHistory} />
+        <DailySummary history={effectiveHistory} stats={stats} pages={pages} />
       </div>
 
       {/* Weekly completion bars */}
-      <WeeklyBars history={dailyTaskHistory} />
+      <WeeklyBars history={effectiveHistory} />
 
       {/* AI Stats & Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-4">

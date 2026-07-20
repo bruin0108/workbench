@@ -6,6 +6,7 @@ const TOKEN_KEY = 'wb_gist_token'
 const GIST_KEY = 'wb_gist_id'
 const LAST_KEY = 'wb_gist_last'
 const FILENAME = 'workbench-data.json'
+const LOCAL_MOD_KEY = 'wb_local_modified'
 
 export function getGistToken(): string | null {
   try { return localStorage.getItem(TOKEN_KEY) } catch { return null }
@@ -28,6 +29,12 @@ export function clearGistConfig() {
 }
 export function hasGistConfig(): boolean {
   return !!getGistToken() && !!getGistId()
+}
+export function getLocalModified(): number {
+  try { return Number(localStorage.getItem(LOCAL_MOD_KEY)) || 0 } catch { return 0 }
+}
+export function setLocalModified(ts: number) {
+  try { localStorage.setItem(LOCAL_MOD_KEY, String(ts)) } catch { /* ignore */ }
 }
 export function getLastSync(): string | null {
   try { return localStorage.getItem(LAST_KEY) } catch { return null }
@@ -63,7 +70,7 @@ async function ghFetch(url: string, options: RequestInit, token: string): Promis
 // 推送：有 gistId 则更新，否则新建。返回最终的 gistId
 export async function pushToGist(token: string, json: string, gistId?: string | null): Promise<string> {
   const body = JSON.stringify({
-    files: { [FILENAME]: { content: json } },
+    files: { [FILENAME]: { content: JSON.stringify({ syncedAt: Date.now(), data: json }) } },
     description: 'WorkBuddy 工作台云端同步',
   })
   if (gistId) {
@@ -79,12 +86,21 @@ export async function pushToGist(token: string, json: string, gistId?: string | 
   return id
 }
 
-// 拉取：返回工作台 JSON 文本（含 chatHistory）
-export async function pullFromGist(token: string, gistId: string): Promise<string> {
+export interface GistPullResult { content: string; syncedAt: number }
+
+// 拉取：返回工作台 JSON 文本（含 chatHistory）及云端时间戳
+export async function pullFromGist(token: string, gistId: string): Promise<GistPullResult> {
   const data = await ghFetch(`https://api.github.com/gists/${gistId}`, { method: 'GET' }, token)
   const files = (data && data.files) || {}
   const file = files[FILENAME]
   if (!file || !file.content) throw new Error('云端没有找到同步文件')
   setLastSync()
-  return file.content as string
+  // 兼容：旧版可能存的是裸工作台 JSON（无 syncedAt 包装）
+  try {
+    const parsed = JSON.parse(file.content)
+    if (parsed && typeof parsed.data === 'string' && typeof parsed.syncedAt === 'number') {
+      return { content: parsed.data, syncedAt: parsed.syncedAt }
+    }
+  } catch { /* 裸格式，往下走 */ }
+  return { content: file.content as string, syncedAt: 0 }
 }

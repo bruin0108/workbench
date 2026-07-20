@@ -1,7 +1,7 @@
 export interface Card {
   id: string
   title: string
-  type: 'info' | 'content' | 'skill' | 'table' | 'coach' | 'tab' | 'milestones' | 'analyze' | 'chat' | 'notebook'
+  type: 'info' | 'content' | 'skill' | 'table' | 'coach' | 'tab' | 'milestones' | 'analyze' | 'chat' | 'notebook' | 'scenario'
   fields: Record<string, string>
   fixed?: boolean
   tabGroup?: string

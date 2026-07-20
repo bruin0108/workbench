@@ -5,6 +5,7 @@ import WorkbenchDashboard from '@/components/workbench/Dashboard'
 import CardRenderer from '@/components/workbench/CardRenderer'
 import ApiKeyModal from '@/components/workbench/ApiKeyModal'
 import CloudSyncModal from '@/components/workbench/CloudSyncModal'
+import { scheduleAutoPush, autoPullOnLoad } from '@/utils/gistAutoSync'
 import { ConfirmModal } from '@/components/workbench/ConfirmModal'
 import { useToast } from '@/components/workbench/Toast'
 import type { Card } from '@/types/workbench'
@@ -39,6 +40,13 @@ export default function PageView() {
     const timer = setTimeout(() => setDebouncedQuery(searchQuery), 200)
     return () => clearTimeout(timer)
   }, [searchQuery])
+
+  // 自动云端同步：打开时拉取云端最新；之后任意本地改动自动上传（防抖）
+  useEffect(() => {
+    const unsub = useWorkbenchStore.subscribe(() => scheduleAutoPush())
+    autoPullOnLoad()
+    return () => unsub()
+  }, [])
 
   const pageDef = getPageDef(currentPage)
 

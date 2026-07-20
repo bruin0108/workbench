@@ -116,7 +116,7 @@ function FieldContent({ value, placeholder, onSave, renderKey }: {
 }
 
 export default function CardRenderer({ card, pageId, index }: { card: Card; pageId: string; index: number }) {
-  const { updateCardField, addCardEntry, deleteCardEntry, updateCardEntry, setContextMenu } = useWorkbenchStore()
+  const { updateCardField, addCardEntry, deleteCardEntry, updateCardEntry, appendCardEntries, setContextMenu } = useWorkbenchStore()
   const pages = useWorkbenchStore(s => s.pages)
   const { toast } = useToast()
   const [renderKey, setRenderKey] = useState(0)
@@ -314,6 +314,99 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
 
       case 'notebook':
         return <NotebookCard card={card} pageId={pageId} />
+
+      case 'scenario': {
+        const entries = card.entries || []
+        const total = entries.length
+        const mastered = entries.filter((e) => e.level === '2').length
+        const pct = total ? Math.round((mastered / total) * 100) : 0
+        const LEVELS = [
+          { v: '0', label: '❌ 不会', cls: 'border-[var(--border)] text-[var(--muted)]' },
+          { v: '1', label: '🟡 磕巴', cls: 'border-yellow-400 text-yellow-600 bg-yellow-50' },
+          { v: '2', label: '🟢 流利', cls: 'border-green-500 text-green-600 bg-green-50' },
+        ]
+        return (
+          <>
+            {card.fields.tip && (
+              <div className="text-[11px] text-[var(--muted)] leading-relaxed mb-2 p-2 bg-accent/5 rounded">
+                {card.fields.tip}
+              </div>
+            )}
+            <div className="mb-3 p-2.5 rounded-md bg-accent/5 border border-accent/20">
+              <div className="flex items-center justify-between text-[12px] mb-1.5">
+                <span className="font-semibold">📊 能力总览</span>
+                <span className="text-[var(--muted)]">已掌握 {mastered} / 共 {total}</span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-gray-200 overflow-hidden">
+                <div className="h-full bg-accent rounded-full transition-all" style={{ width: `${pct}%` }} />
+              </div>
+            </div>
+            <div className="space-y-2.5">
+              {entries.map((entry, i) => {
+                const isEditing = editingEntry === i
+                if (isEditing) {
+                  const ek = ['title', 'goal', 'phrases']
+                  return (
+                    <div key={i} className="p-3 bg-white rounded-md border border-accent/30 space-y-2">
+                      {ek.map((k) => (
+                        <div key={k}>
+                          <span className="text-[11px] font-semibold text-muted block mb-0.5">{k === 'title' ? '场景名' : k === 'goal' ? '目标' : '关键句（每行一句）'}</span>
+                          <textarea
+                            value={editData[k] || ''}
+                            onChange={(e) => setEditData({ ...editData, [k]: e.target.value })}
+                            className="w-full text-[13px] px-2 py-1.5 border border-accent/30 rounded outline-none focus:border-accent bg-white resize-none"
+                            rows={k === 'phrases' ? 4 : 2}
+                          />
+                        </div>
+                      ))}
+                      <div className="flex gap-2">
+                        <button onClick={() => saveEditEntry(i)} className="text-[11px] px-2.5 py-1 bg-accent text-white rounded hover:opacity-90">保存</button>
+                        <button onClick={() => setEditingEntry(null)} className="text-[11px] px-2.5 py-1 bg-gray-200 text-ink rounded hover:bg-gray-300">取消</button>
+                      </div>
+                    </div>
+                  )
+                }
+                return (
+                  <div key={i} className="p-3 bg-white rounded-md border border-[var(--border)] group/sc">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="font-semibold text-[13px] text-[var(--ink)]">{entry.title}</div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover/sc:opacity-100 transition-all">
+                        <button onClick={() => startEditEntry(i, entry)} className="text-[10px] px-1.5 py-0.5 bg-accent text-white rounded hover:opacity-90" title="编辑">✎</button>
+                        <button onClick={() => { deleteCardEntry(pageId, card.id, i); toast('场景已删除') }} className="text-[10px] px-1.5 py-0.5 bg-red-500 text-white rounded hover:bg-red-600" title="删除">✕</button>
+                      </div>
+                    </div>
+                    {entry.goal && <div className="text-[11px] text-[var(--muted)] mt-0.5">🎯 {entry.goal}</div>}
+                    {entry.phrases && (
+                      <div className="mt-1.5 space-y-0.5">
+                        {entry.phrases.split('\n').filter(Boolean).map((p, pi) => (
+                          <div key={pi} className="text-[12px] text-[var(--ink)] flex gap-1.5"><span className="text-accent shrink-0">▸</span><span>{p}</span></div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex gap-1.5 mt-2">
+                      {LEVELS.map((l) => (
+                        <button
+                          key={l.v}
+                          onClick={() => updateCardEntry(pageId, card.id, i, { level: l.v })}
+                          className={`text-[11px] px-2 py-1 rounded border transition-all ${entry.level === l.v ? l.cls + ' font-semibold ring-1 ring-current' : 'border-[var(--border)] text-[var(--muted)] hover:border-accent'}`}
+                        >
+                          {l.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <button
+              onClick={() => appendCardEntries(pageId, card.id, [{ title: '新场景', goal: '', phrases: '', level: '0' }])}
+              className="mt-3 w-full text-[12px] py-2 rounded-md border border-dashed border-accent text-accent hover:bg-accent/5 transition-colors"
+            >
+              ＋ 添加场景
+            </button>
+          </>
+        )
+      }
 
       default:
         return (
