@@ -11,6 +11,7 @@ import NotebookCard from './NotebookCard'
 import ErrorSummary from './ErrorSummary'
 import { Markdown } from './Markdown'
 import { autoFormatText } from '@/utils/autoFormat'
+import SpeakButton from './SpeakButton'
 
 /**
  * Smart field renderer:
@@ -367,19 +368,26 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                   )
                 }
                 return (
-                  <div key={i} className="p-3 bg-white rounded-md border border-[var(--border)] group/sc">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="font-semibold text-[13px] text-[var(--ink)]">{entry.title}</div>
-                      <div className="flex items-center gap-1 opacity-0 group-hover/sc:opacity-100 transition-all">
+                <div key={i} className="p-3 bg-white rounded-md border border-[var(--border)] group/sc">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="font-semibold text-[13px] text-[var(--ink)] flex items-center gap-1.5">
+                      {entry.title}
+                      <SpeakButton text={entry.phrases || entry.goal || entry.title} className="text-[12px]" title="朗读整段" />
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover/sc:opacity-100 transition-all">
                         <button onClick={() => startEditEntry(i, entry)} className="text-[10px] px-1.5 py-0.5 bg-accent text-white rounded hover:opacity-90" title="编辑">✎</button>
                         <button onClick={() => { deleteCardEntry(pageId, card.id, i); toast('场景已删除') }} className="text-[10px] px-1.5 py-0.5 bg-red-500 text-white rounded hover:bg-red-600" title="删除">✕</button>
                       </div>
                     </div>
                     {entry.goal && <div className="text-[11px] text-[var(--muted)] mt-0.5">🎯 {entry.goal}</div>}
                     {entry.phrases && (
-                      <div className="mt-1.5 space-y-0.5">
+                      <div className="mt-1.5 space-y-1">
                         {entry.phrases.split('\n').filter(Boolean).map((p, pi) => (
-                          <div key={pi} className="text-[12px] text-[var(--ink)] flex gap-1.5"><span className="text-accent shrink-0">▸</span><span>{p}</span></div>
+                          <div key={pi} className="text-[12px] text-[var(--ink)] flex items-start gap-1.5">
+                            <span className="text-accent shrink-0 mt-0.5">▸</span>
+                            <span className="flex-1">{p}</span>
+                            <SpeakButton text={p} className="shrink-0 text-[12px] mt-0.5" title="朗读这句" />
+                          </div>
                         ))}
                       </div>
                     )}

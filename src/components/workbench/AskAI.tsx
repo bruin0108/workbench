@@ -3,6 +3,7 @@ import { Send, Loader2, Sparkles, Trash2, Copy, Check, User } from 'lucide-react
 import { generateChat } from '@/utils/ai'
 import { Markdown } from './Markdown'
 import { autoFormatText } from '@/utils/autoFormat'
+import SpeakButton from './SpeakButton'
 
 const TOPIC_PROMPTS: Record<string, string> = {
   theory: '你是一个企业培训领域的知识专家。用户会向你咨询培训模型、方法论、教学设计相关问题。请用专业但易懂的中文回答，给出具体例子和应用场景。',
@@ -89,8 +90,13 @@ export default function AskAI({ pageId }: { pageId: string }) {
                 <div className={`text-[10px] font-semibold mb-1 ${msg.role === 'user' ? 'text-right text-[var(--accent2)]' : 'text-[var(--muted)]'}`}>
                   {msg.role === 'user' ? '你' : 'AI'}
                 </div>
-                <div className={`chat-bubble ${msg.role} select-text`}>
+                <div className={`chat-bubble ${msg.role} select-text relative`}>
                   {msg.role === 'ai' ? <Markdown text={autoFormatText(msg.text)} /> : <span className="whitespace-pre-wrap">{msg.text}</span>}
+                  {pageId === 'life-english' && (
+                    <div className="mt-2 pt-1.5 border-t border-dashed border-[var(--border)]">
+                      <SpeakButton text={msg.text} className="text-[11px]" title="朗读这句" />
+                    </div>
+                  )}
                   {msg.role === 'ai' && (
                     <button className="chat-copy-btn" onClick={() => navigator.clipboard.writeText(msg.text).catch(()=>{})}>
                       <Copy size={11} /> 复制
