@@ -8,14 +8,21 @@ const LAST_KEY = 'wb_gist_last'
 const FILENAME = 'workbench-data.json'
 const LOCAL_MOD_KEY = 'wb_local_modified'
 
+// 云端同步凭据：优先读构建时注入的环境变量 VITE_GIST_TOKEN / VITE_GIST_ID
+// （在 .env 中配置；.env 已被 .gitignore 忽略，不会进入代码仓库，避免凭据泄露）
+// 作用：让任何打开部署网址的设备自动连接云端，无需每台电脑手动配置
+// 若环境变量未设置，则回退到用户在「☁️ 云端同步」中手动填写的 localStorage 值
+const ENV_TOKEN = (import.meta as any).env?.VITE_GIST_TOKEN as string | undefined
+const ENV_GIST_ID = (import.meta as any).env?.VITE_GIST_ID as string | undefined
+
 export function getGistToken(): string | null {
-  try { return localStorage.getItem(TOKEN_KEY) } catch { return null }
+  try { return localStorage.getItem(TOKEN_KEY) || ENV_TOKEN || null } catch { return ENV_TOKEN || null }
 }
 export function saveGistToken(t: string) {
   try { localStorage.setItem(TOKEN_KEY, t.trim()) } catch { /* ignore */ }
 }
 export function getGistId(): string | null {
-  try { return localStorage.getItem(GIST_KEY) } catch { return null }
+  try { return localStorage.getItem(GIST_KEY) || ENV_GIST_ID || null } catch { return ENV_GIST_ID || null }
 }
 export function saveGistId(id: string) {
   try { localStorage.setItem(GIST_KEY, id) } catch { /* ignore */ }

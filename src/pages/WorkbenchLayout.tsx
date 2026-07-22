@@ -4,6 +4,7 @@ import Sidebar from '@/components/workbench/Sidebar'
 import PageView from './Workbench'
 import { startReminderLoop, stopReminderLoop, getReminderSettings } from '@/utils/reminder'
 import { scheduleAutoSync } from '@/utils/autoSync'
+import { autoPullOnLoad, scheduleAutoPush } from '@/utils/gistAutoSync'
 import { useUndoRedo } from '@/components/workbench/useUndoRedo'
 
 export default function WorkbenchLayout() {
@@ -29,6 +30,11 @@ export default function WorkbenchLayout() {
     }
   }, [init, initialized])
 
+  // 启动 GitHub Gist 云端同步：打开即自动拉取云端数据（凭据已内置，无需手动配置）
+  useEffect(() => {
+    autoPullOnLoad()
+  }, [initialized])
+
   // 启动每日任务提醒
   useEffect(() => {
     const settings = getReminderSettings()
@@ -44,7 +50,7 @@ export default function WorkbenchLayout() {
   useEffect(() => {
     const unsub = useWorkbenchStore.subscribe(
       (state) => state.pages,
-      () => scheduleRef.current()
+      () => { scheduleRef.current(); scheduleAutoPush() }
     )
     return () => unsub()
   }, [])

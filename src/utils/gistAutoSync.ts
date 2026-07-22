@@ -8,11 +8,13 @@ import {
   pushToGist, pullFromGist, getLocalModified, setLocalModified,
 } from '@/utils/gistSync'
 
+let pulledOnce = false // 首次成功拉取云端前，禁止推送（防止空数据覆盖云端）
 let pushTimer: ReturnType<typeof setTimeout> | null = null
 let pushing = false
 
 // 本地数据变更后，延迟上传到 Gist（合并频繁改动，避免请求风暴）
 export function scheduleAutoPush() {
+  if (!pulledOnce) return // 首次成功拉取前不推送，避免空数据覆盖云端
   if (pushTimer) clearTimeout(pushTimer)
   pushTimer = setTimeout(async () => {
     pushTimer = null
@@ -63,5 +65,7 @@ export async function autoPullOnLoad() {
     // 若 syncedAt <= local：本地较新或相同，不覆盖（稍后自动上传会更新云端）
   } catch {
     // 云端无数据 / 网络错误，静默忽略
+  } finally {
+    pulledOnce = true // 首次拉取尝试结束（成功与否），允许后续本地改动推送
   }
 }
