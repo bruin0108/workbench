@@ -506,14 +506,15 @@ export const SEED_DATA = {
           "tip": "练习方法：点开一个场景 → 读熟关键句 → 来跟 Bear（小熊）用英语角色扮演、达成目标 → 练完回来把掌握度调到对应档。这样每次聊都有产出、能积累，不再是散聊。"
         },
         "entries": [
-          { "title": "工作·介绍一次培训安排", "goal": "用英语向学员说明培训的时间、地点、着装要求", "phrases": "The training runs from July 8 to 11.\nPlease wear business formal attire.\nThe venue is Building 3, Room 327.", "level": "0" },
-          { "title": "工作·跟外方对齐需求", "goal": "澄清任务要求、截止时间和交付物", "phrases": "Could you clarify the deadline?\nWhat exactly do you need from us?\nI'll send the draft by Friday.", "level": "0" },
-          { "title": "工作·做项目汇报", "goal": "用英语做 5 分钟工作进展汇报", "phrases": "Here is where we are.\nThe main blocker is...\nNext steps are...", "level": "0" },
-          { "title": "工作·培训开场破冰", "goal": "用英文做自我介绍并暖场", "phrases": "Let me introduce myself.\nToday we will focus on...\nFeel free to jump in.", "level": "0" },
-          { "title": "生活·租房问住宿", "goal": "询问房型、价格、合同", "phrases": "How much is the monthly rent?\nIs the deposit refundable?\nWhen can I move in?", "level": "0" },
-          { "title": "生活·校园/机构报到", "goal": "办理入学或报到手续", "phrases": "I am here to register.\nWhich documents do I need?\nWhere is the office?", "level": "0" },
-          { "title": "生活·餐厅点单", "goal": "点餐并提出特殊要求", "phrases": "I would like to order...\nCould you make it less spicy?\nIs this vegetarian?", "level": "0" },
-          { "title": "生活·问路/交通", "goal": "问地铁或公交换乘", "phrases": "How do I get to...?\nWhich line should I take?\nIs it within walking distance?", "level": "0" }
+          { "title": "👤 自我介绍", "goal": "不看稿介绍自己、工作和为什么学英语", "phrases": "I'm ___. I work as ___ at ___.\nI'm learning English because I want to travel abroad.\nIn my free time, I like ___.", "level": "0", "notes": "" },
+          { "title": "工作·介绍一次培训安排", "goal": "用英语向学员说明培训的时间、地点、着装要求", "phrases": "The training runs from July 8 to 11.\nPlease wear business formal attire.\nThe venue is Building 3, Room 327.", "level": "0", "notes": "" },
+          { "title": "工作·跟外方对齐需求", "goal": "澄清任务要求、截止时间和交付物", "phrases": "Could you clarify the deadline?\nWhat exactly do you need from us?\nI'll send the draft by Friday.", "level": "0", "notes": "" },
+          { "title": "工作·做项目汇报", "goal": "用英语做 5 分钟工作进展汇报", "phrases": "Here is where we are.\nThe main blocker is...\nNext steps are...", "level": "0", "notes": "" },
+          { "title": "工作·培训开场破冰", "goal": "用英文做自我介绍并暖场", "phrases": "Let me introduce myself.\nToday we will focus on...\nFeel free to jump in.", "level": "0", "notes": "" },
+          { "title": "生活·租房问住宿", "goal": "询问房型、价格、合同", "phrases": "How much is the monthly rent?\nIs the deposit refundable?\nWhen can I move in?", "level": "0", "notes": "" },
+          { "title": "生活·校园/机构报到", "goal": "办理入学或报到手续", "phrases": "I am here to register.\nWhich documents do I need?\nWhere is the office?", "level": "0", "notes": "" },
+          { "title": "生活·餐厅点单", "goal": "点餐并提出特殊要求", "phrases": "I would like to order...\nCould you make it less spicy?\nIs this vegetarian?", "level": "0", "notes": "" },
+          { "title": "生活·问路/交通", "goal": "问地铁或公交换乘", "phrases": "How do I get to...?\nWhich line should I take?\nIs it within walking distance?", "level": "0", "notes": "" }
         ]
       },
       {

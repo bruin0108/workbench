@@ -346,17 +346,17 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
               {entries.map((entry, i) => {
                 const isEditing = editingEntry === i
                 if (isEditing) {
-                  const ek = ['title', 'goal', 'phrases']
+                  const ek = ['title', 'goal', 'phrases', 'notes']
                   return (
                     <div key={i} className="p-3 bg-white rounded-md border border-accent/30 space-y-2">
                       {ek.map((k) => (
                         <div key={k}>
-                          <span className="text-[11px] font-semibold text-muted block mb-0.5">{k === 'title' ? '场景名' : k === 'goal' ? '目标' : '关键句（每行一句）'}</span>
+                          <span className="text-[11px] font-semibold text-muted block mb-0.5">{k === 'title' ? '场景名' : k === 'goal' ? '目标' : k === 'phrases' ? '关键句（每行一句）' : '练习笔记'}</span>
                           <textarea
                             value={editData[k] || ''}
                             onChange={(e) => setEditData({ ...editData, [k]: e.target.value })}
                             className="w-full text-[13px] px-2 py-1.5 border border-accent/30 rounded outline-none focus:border-accent bg-white resize-none"
-                            rows={k === 'phrases' ? 4 : 2}
+                            rows={k === 'phrases' || k === 'notes' ? 4 : 2}
                           />
                         </div>
                       ))}
@@ -390,6 +390,9 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                           </div>
                         ))}
                       </div>
+                    )}
+                    {entry.notes && (
+                      <div className="mt-2 p-2 bg-accent/5 rounded text-[11px] text-[var(--muted)] whitespace-pre-wrap border-l-2 border-accent/30 pl-2.5">{entry.notes}</div>
                     )}
                     <div className="flex gap-1.5 mt-2">
                       {LEVELS.map((l) => (
