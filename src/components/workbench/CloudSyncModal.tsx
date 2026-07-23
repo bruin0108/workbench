@@ -20,23 +20,24 @@ export default function CloudSyncModal({ open, onClose }: Props) {
   const [useExisting, setUseExisting] = useState(false)
   const [gistId, setGistId] = useState('')
   const [showToken, setShowToken] = useState(false)
-  const [busy, setBusy] = useState(false)
+  const [pushBusy, setPushBusy] = useState(false)
+  const [pullBusy, setPullBusy] = useState(false)
+  const [connectBusy, setConnectBusy] = useState(false)
   const [error, setError] = useState('')
 
   if (!open) return null
 
-  const startBusy = () => { setBusy(true); setError('') }
-  const fail = (msg: string) => { setError(msg); setBusy(false) }
+  const busy = pushBusy || pullBusy || connectBusy
+  const fail = (msg: string) => { setError(msg); setConnectBusy(false); setPushBusy(false); setPullBusy(false) }
 
   const handleConnect = async () => {
     const t = token.trim()
     if (!t) return fail('请输入 GitHub Token')
-    startBusy()
+    setConnectBusy(true); setError('')
     try {
       if (useExisting) {
         const gid = gistId.trim()
         if (!gid) throw new Error('请输入已有 Gist ID')
-        // 验证可达
         await pullFromGist(t, gid)
         saveGistToken(t); saveGistId(gid)
         toast('已连接云端')
@@ -47,30 +48,30 @@ export default function CloudSyncModal({ open, onClose }: Props) {
         toast('已创建云端备份并上传当前数据')
       }
       setConnected(true)
-      setBusy(false)
+      setConnectBusy(false)
     } catch (e: any) {
-      fail(e?.message || '连接失败')
+      setError(e?.message || '连接失败'); setConnectBusy(false)
     }
   }
 
   const handlePush = async () => {
     const t = getGistToken(); const gid = getGistId()
     if (!t || !gid) return fail('尚未连接云端')
-    startBusy()
+    setPushBusy(true); setError('')
     try {
       const json = useWorkbenchStore.getState().exportData()
       await pushToGist(t, json, gid)
       toast('已上传到云端 ☁️')
-      setBusy(false)
+      setPushBusy(false)
     } catch (e: any) {
-      fail(e?.message || '上传失败')
+      setError(e?.message || '上传失败'); setPushBusy(false)
     }
   }
 
   const handlePull = async () => {
     const t = getGistToken(); const gid = getGistId()
     if (!t || !gid) return fail('尚未连接云端')
-    startBusy()
+    setPullBusy(true); setError('')
     try {
       const { content } = await pullFromGist(t, gid)
       // 合并导入：云端 ∪ 本地，避免覆盖本地已有内容
@@ -80,7 +81,7 @@ export default function CloudSyncModal({ open, onClose }: Props) {
       toast('已与云端合并，正在刷新…')
       setTimeout(() => window.location.reload(), 800)
     } catch (e: any) {
-      fail(e?.message || '拉取失败')
+      setError(e?.message || '拉取失败'); setPullBusy(false)
     }
   }
 
@@ -201,7 +202,7 @@ export default function CloudSyncModal({ open, onClose }: Props) {
                 disabled={busy}
                 className="w-full flex items-center justify-center gap-2 bg-accent text-white text-[13px] font-semibold py-2.5 rounded-md hover:opacity-90 disabled:opacity-50 transition-all mb-2.5"
               >
-                {busy ? <RefreshCw size={15} className="animate-spin" /> : <Upload size={15} />}
+                {pushBusy ? <RefreshCw size={15} className="animate-spin" /> : <Upload size={15} />}
                 上传当前数据到云端
               </button>
               <button
@@ -209,7 +210,7 @@ export default function CloudSyncModal({ open, onClose }: Props) {
                 disabled={busy}
                 className="w-full flex items-center justify-center gap-2 bg-white text-accent border border-accent text-[13px] font-semibold py-2.5 rounded-md hover:bg-accent/5 disabled:opacity-50 transition-all mb-3"
               >
-                <Download size={15} />
+                {pullBusy ? <RefreshCw size={15} className="animate-spin" /> : <Download size={15} />}
                 从云端拉取最新
               </button>
 
