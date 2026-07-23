@@ -6,6 +6,7 @@ import {
   getGistToken, saveGistToken, getGistId, saveGistId, clearGistConfig,
   hasGistConfig, getLastSync, pushToGist, pullFromGist,
 } from '@/utils/gistSync'
+import { skipAutoPushOnce } from '@/utils/gistAutoSync'
 
 interface Props {
   open: boolean
@@ -73,6 +74,7 @@ export default function CloudSyncModal({ open, onClose }: Props) {
     try {
       const { content } = await pullFromGist(t, gid)
       // 合并导入：云端 ∪ 本地，避免覆盖本地已有内容
+      skipAutoPushOnce() // 拉取就是拉取，禁止自动回推
       const ok = useWorkbenchStore.getState().mergeFromCloud(content)
       if (!ok) throw new Error('导入失败：数据格式不正确')
       toast('已与云端合并，正在刷新…')

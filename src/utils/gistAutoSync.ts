@@ -11,9 +11,11 @@ import {
 let pulledOnce = false // 首次成功拉取云端前，禁止推送（防止空数据覆盖云端）
 let pushTimer: ReturnType<typeof setTimeout> | null = null
 let pushing = false
+let suppressNextPush = false // 拉取时临时禁止自动回推
 
 // 本地数据变更后，延迟上传到 Gist（合并频繁改动，避免请求风暴）
 export function scheduleAutoPush() {
+  if (suppressNextPush) { suppressNextPush = false; return }
   if (!pulledOnce) return // 首次成功拉取前不推送，避免空数据覆盖云端
   if (pushTimer) clearTimeout(pushTimer)
   pushTimer = setTimeout(async () => {
@@ -52,12 +54,6 @@ export async function autoPullOnLoad() {
       const ok = useWorkbenchStore.getState().mergeFromCloud(content)
       if (ok) {
         setLocalModified(syncedAt)
-        // 合并后可能补齐了本地缺失的内容，立即把完整数据推回云端，保证其他设备也能拿到
-        try {
-          const json = useWorkbenchStore.getState().exportData()
-          await pushToGist(t, json, gid)
-          setLocalModified(Date.now())
-        } catch { /* 推送失败静默忽略，下次变更重试 */ }
         // 重新加载，让依赖 localStorage 的 AI 对话等组件刷新
         setTimeout(() => window.location.reload(), 900)
       }
@@ -68,4 +64,9 @@ export async function autoPullOnLoad() {
   } finally {
     pulledOnce = true // 首次拉取尝试结束（成功与否），允许后续本地改动推送
   }
+}
+
+// 手动拉取前调用，禁止本次自动回推
+export function skipAutoPushOnce() {
+  suppressNextPush = true
 }
