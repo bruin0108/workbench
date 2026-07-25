@@ -392,7 +392,14 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                       </div>
                     )}
                     {entry.notes && (
-                      <div className="mt-2 p-2 bg-accent/5 rounded text-[11px] text-[var(--muted)] whitespace-pre-wrap border-l-2 border-accent/30 pl-2.5">{entry.notes}</div>
+                      <div className="mt-2 p-2 bg-accent/5 rounded text-[11px] text-[var(--muted)] border-l-2 border-accent/30 pl-2.5 space-y-1">
+                        {entry.notes.split('\n').filter(Boolean).map((line, li) => (
+                          <div key={li} className="flex items-start gap-1.5">
+                            <span className="flex-1 whitespace-pre-wrap">{line}</span>
+                            <SpeakButton text={line} className="shrink-0 text-[11px] mt-0.5" title="朗读这句" />
+                          </div>
+                        ))}
+                      </div>
                     )}
                     <div className="flex gap-1.5 mt-2">
                       {LEVELS.map((l) => (
