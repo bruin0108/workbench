@@ -393,12 +393,16 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                     )}
                     {entry.notes && (
                       <div className="mt-2 p-2 bg-accent/5 rounded text-[11px] text-[var(--muted)] border-l-2 border-accent/30 pl-2.5 space-y-1">
-                        {entry.notes.split('\n').filter(Boolean).map((line, li) => (
+                        {entry.notes.split('\n').filter(Boolean).map((line, li) => {
+                          // 朗读时去掉行首的角色标记（emoji + 空格）
+                          const speakText = line.replace(/^[^a-zA-Z0-9]+\s*/, '')
+                          return (
                           <div key={li} className="flex items-start gap-1.5">
                             <span className="flex-1 whitespace-pre-wrap">{line}</span>
-                            <SpeakButton text={line} className="shrink-0 text-[11px] mt-0.5" title="朗读这句" />
+                            {speakText ? <SpeakButton text={speakText} className="shrink-0 text-[11px] mt-0.5" title="朗读这句" /> : <span className="shrink-0 w-5" />}
                           </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     )}
                     <div className="flex gap-1.5 mt-2">
