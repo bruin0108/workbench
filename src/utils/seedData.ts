@@ -528,6 +528,16 @@ export const SEED_DATA = {
           "note": ""
         },
         "entries": []
+      },
+      {
+        "id": "eng-volka",
+        "title": "🎬 Volka 场景词复盘",
+        "type": "volka",
+        "fields": {
+          "scenario": "Household / Bathroom",
+          "words": "Blanket\nToilet\nPlunger\nShower Head\nTowel Rack\nSoap dispenser\nHair tie\nElectric toothbrush\nCologne\nSponge\nKnife\nMicrowave\nMini-fridge"
+        },
+        "entries": []
       }
     ],
     "life-reading": [

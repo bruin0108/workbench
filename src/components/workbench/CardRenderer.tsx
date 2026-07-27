@@ -430,6 +430,76 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
         )
       }
 
+      case 'volka': {
+        const volkaEntries = card.entries || []
+        const scene = card.fields.scenario || ''
+        const words = (card.fields.words || '').split('\n').filter(Boolean)
+        const buildPrompt = () => {
+          const wordList = words.join(', ')
+          const prompt = `我们用英语做一个场景对话练习。\n场景：「${scene || '（先填一下场景名）'}」\n请主要用到这些词：${wordList || '（先填一下词表）'}\n\n规则：\n1. 你先用轻松口语开场，给我一个这个场景下的小任务（描述 / 提问 / 角色扮演都行）。\n2. 我会先试着说，错了没关系。\n3. 纠正我时给三档标注：✅native（母语者真这么说）/ ⚠️formal（语法对但太书面，聊天别用）/ ❌Chinglish-risk（中式直译），并给自然版。\n4. 练完帮我归纳这个场景最该记住的 3 句话。`
+          navigator.clipboard.writeText(prompt)
+          toast('提示词已复制 → 去本页「💬 AI 英语教练」粘贴开始')
+        }
+        return (
+          <>
+            <div className="text-[11px] text-[var(--muted)] leading-relaxed mb-2 p-2 bg-accent/5 rounded">
+              Volka 场景词闭环：①看视频记词 → ②填场景名+词表 → ③点「复制提示词」去 AI 教练对话 → ④练完把易错点记到下方复盘。
+            </div>
+            <div className="field-row">
+              <span className="field-label">场景名</span>
+              <FieldContent value={scene} placeholder="如：Household / Bathroom" onSave={handleFieldBlur('scenario')} renderKey={renderKey} />
+            </div>
+            <div className="mt-2">
+              <span className="field-label block mb-1">词表（每行一个）</span>
+              <textarea
+                defaultValue={card.fields.words || ''}
+                onBlur={(e) => updateCardField(pageId, card.id, 'words', e.target.value)}
+                placeholder={'Blanket\nToilet\nPlunger\nShower Head\nTowel Rack\nSoap dispenser'}
+                className="w-full text-[13px] px-2 py-1.5 border border-[var(--border)] rounded outline-none focus:border-accent bg-white resize-none"
+                rows={6}
+              />
+            </div>
+            <button onClick={buildPrompt} className="mt-2 w-full text-[12px] py-2 rounded-md bg-accent text-white hover:opacity-90 transition-opacity">
+              🚀 复制 AI 对话提示词
+            </button>
+            <div className="mt-3 p-2 bg-amber-50 rounded text-[11px] text-[var(--muted)] leading-relaxed">
+              <div className="font-semibold mb-1 text-[var(--ink)]">⚠️ 复盘时自查（防中式英语石化）</div>
+              <div>• 书面词别当口语：utilize→use · commence→start · purchase→buy</div>
+              <div>• 中文直译：open the light→turn on · I very like→I really like</div>
+              <div>• 缺缩写：do not→don't · I am→I'm · it is→it's</div>
+              <div>• very+形容词：very tired→exhausted · very big→huge</div>
+              <div>• 语序像中文：How to say→How do you say</div>
+            </div>
+            <div className="mt-3">
+              <div className="text-[12px] font-semibold mb-1.5">📝 我的复盘记录</div>
+              <div className="space-y-2">
+                {volkaEntries.map((e, i) => (
+                  <div key={i} className="p-2.5 bg-white rounded-md border border-[var(--border)]">
+                    <textarea
+                      defaultValue={e.content || ''}
+                      onBlur={(ev) => updateCardEntry(pageId, card.id, i, { content: ev.target.value, date: e.date || new Date().toISOString().slice(0, 10) })}
+                      placeholder="记下这局的易错点 + 标准说法..."
+                      className="w-full text-[12px] px-2 py-1.5 border border-accent/30 rounded outline-none focus:border-accent bg-white resize-none"
+                      rows={3}
+                    />
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-[10px] text-[var(--muted)]">{e.date || ''}</span>
+                      <button onClick={() => { deleteCardEntry(pageId, card.id, i); toast('复盘已删除') }} className="text-[10px] text-red-500 hover:underline">删除</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => appendCardEntries(pageId, card.id, [{ date: new Date().toISOString().slice(0, 10), content: '' }])}
+                className="mt-2 w-full text-[12px] py-2 rounded-md border border-dashed border-accent text-accent hover:bg-accent/5 transition-colors"
+              >
+                ＋ 添加复盘记录
+              </button>
+            </div>
+          </>
+        )
+      }
+
       default:
         return (
           <>
