@@ -73,6 +73,13 @@ async function autoImportInjectCards(token: string, gid: string): Promise<boolea
       d.pages[it.page] = arr
       n++
     }
+    // 清理列表：删除用户确认可删的卡片（如被新卡合并覆盖的旧空模板卡）
+    for (const rm of (p.remove || []) as { page?: string; id?: string }[]) {
+      if (!rm || !rm.page || !rm.id) continue
+      const arr = d.pages[rm.page] || []
+      const after = arr.filter((x: { id: string }) => x.id !== rm.id)
+      if (after.length !== arr.length) { d.pages[rm.page] = after; n++ }
+    }
     if (n === 0) return false
     localStorage.setItem(STORAGE_KEY, JSON.stringify(d))
     localStorage.setItem(INJECT_MARK, String(p.updatedAt))
