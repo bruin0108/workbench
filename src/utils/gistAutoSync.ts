@@ -38,7 +38,52 @@ export function scheduleAutoPush() {
   }, 1500)
 }
 
-// 页面打开时拉取云端：时间戳优先 —— 云端较新则覆盖本地，否则保留本地
+// AI 注入通道：从 Gist 独立文件 inject-cards.json 自动导入卡片。
+// 关键设计：autoPush 只写 workbench-data.json，永远不会碰 inject-cards.json，
+// 所以 AI 推的卡片不可能被自动上传冲掉（彻底消除"抢跑"赛跑问题）。
+// 文件格式：{ updatedAt: number, cards: [{ page, replace: string[], card: {...} }] }
+const INJECT_FILE = 'inject-cards.json'
+const INJECT_MARK = 'wb_inject_imported_at' // 已导入版本号，防止重复导入覆盖用户后续编辑
+const STORAGE_KEY = 'wb_react_v1'
+
+async function autoImportInjectCards(token: string, gid: string): Promise<boolean> {
+  try {
+    const r = await fetch(`https://api.github.com/gists/${gid}`, {
+      headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github+json' },
+    })
+    if (!r.ok) return false
+    const j = await r.json()
+    const f = j.files?.[INJECT_FILE]
+    if (!f) return false
+    let c: string = f.content
+    if (f.truncated) c = await (await fetch(f.raw_url)).text()
+    const p = JSON.parse(c)
+    const mark = Number(localStorage.getItem(INJECT_MARK) || 0)
+    if (!(Number(p.updatedAt) > mark)) return false // 这批卡片已导入过
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return false
+    const d = JSON.parse(raw)
+    if (!d || !d.pages) return false
+    let n = 0
+    for (const it of p.cards || []) {
+      if (!it || !it.page || !it.card || !it.card.id) continue
+      const rm = new Set<string>([...(it.replace || []), it.card.id])
+      const arr = (d.pages[it.page] || []).filter((x: { id: string }) => !rm.has(x.id))
+      arr.push(it.card)
+      d.pages[it.page] = arr
+      n++
+    }
+    if (n === 0) return false
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(d))
+    localStorage.setItem(INJECT_MARK, String(p.updatedAt))
+    return true
+  } catch {
+    return false
+  }
+}
+
+// 页面打开时拉取云端：时间戳优先 —— 云端较新则合并进本地，否则保留本地；
+// 之后无论如何都检查一次 AI 注入通道（不受时间戳限制）。
 export async function autoPullOnLoad() {
   if (!hasGistConfig()) return
   const t = getGistToken()
@@ -46,6 +91,7 @@ export async function autoPullOnLoad() {
   if (!t || !gid) return
   // 确保 store 已初始化（幂等）
   try { if (!useWorkbenchStore.getState().initialized) useWorkbenchStore.getState().init() } catch { /* ignore */ }
+  let changed = false
   try {
     const { content, syncedAt } = await pullFromGist(t, gid)
     const local = getLocalModified()
@@ -54,15 +100,21 @@ export async function autoPullOnLoad() {
       const ok = useWorkbenchStore.getState().mergeFromCloud(content)
       if (ok) {
         setLocalModified(syncedAt)
-        // 重新加载，让依赖 localStorage 的 AI 对话等组件刷新
-        setTimeout(() => window.location.reload(), 900)
+        changed = true
       }
     }
     // 若 syncedAt <= local：本地较新或相同，不覆盖（稍后自动上传会更新云端）
   } catch {
     // 云端无数据 / 网络错误，静默忽略
-  } finally {
-    pulledOnce = true // 首次拉取尝试结束（成功与否），允许后续本地改动推送
+  }
+  // AI 注入通道：必须放在 mergeFromCloud 之后（merge 会重写 localStorage，先注入会被冲掉）
+  try {
+    if (await autoImportInjectCards(t, gid)) changed = true
+  } catch { /* ignore */ }
+  pulledOnce = true // 首次拉取尝试结束（成功与否），允许后续本地改动推送
+  if (changed) {
+    // 重新加载，让 store 和依赖 localStorage 的 AI 对话等组件刷新
+    setTimeout(() => window.location.reload(), 900)
   }
 }
 
