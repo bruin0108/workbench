@@ -66,11 +66,10 @@ function parseEntries(raw: string | undefined): CoachEntry[] {
   return []
 }
 
-function CoachCard({ card, pageId, updateCardField, handleCoachRun, coachLoading, toast }: {
+function CoachCard({ card, pageId, updateCardField, toast }: {
   card: Card; pageId: string;
   updateCardField: (pid: string, cid: string, field: string, val: string) => void;
-  handleCoachRun: (entryId?: string) => Promise<void>;
-  coachLoading: boolean; toast: (msg: string, type?: string) => void;
+  toast: (msg: string, type?: string) => void;
 }) {
   const [entries, setEntries] = useState<CoachEntry[]>(() => {
     const stored = parseEntries(card.fields.coach_entries)
@@ -90,6 +89,7 @@ function CoachCard({ card, pageId, updateCardField, handleCoachRun, coachLoading
   })
   // Default: all collapsed (null = all closed)
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
   const saveEntries = (updated: CoachEntry[]) => {
     setEntries(updated)
@@ -125,10 +125,36 @@ function CoachCard({ card, pageId, updateCardField, handleCoachRun, coachLoading
     document.execCommand('insertText', false, cleaned)
   }
 
-  const runForEntry = async (entry: CoachEntry) => {
+  // AI call — uses local state directly (always up-to-date)
+  const runForEntry = async (targetId: string) => {
     if (!hasPaidKey()) { toast('请先在顶部「⚙️ AI 配置」配置 API 密钥', 'info'); return }
-    if (entry.prompt.trim().length < 5) { toast('请先填写讲话内容', 'info'); return }
-    await handleCoachRun(entry.id)
+    // Find entry from LOCAL state (not from card.props — avoids sync timing issues)
+    const entry = entries.find(e => e.id === targetId)
+    if (!entry || !entry.prompt || entry.prompt.trim().length < 5) {
+      toast('请先填写讲话内容（至少5个字）', 'info'); return
+    }
+    const standard = entry.standard || ''
+    const fullPrompt = standard.trim().length > 0
+      ? `【讲话内容】\n${entry.prompt}\n\n【参考范例】（这是一条之前做过的、用户满意的结果，请严格模仿它的风格、格式、结构和语言习惯来处理上面的新内容）\n${standard}`
+      : entry.prompt
+    const system = standard.trim().length > 0
+      ? '你是用户的智能助手。用户会提供一段新内容和一条参考范例。请仔细分析范例的风格、格式、结构、语言特点，然后用完全一致的方式处理新内容。不要编造新内容中没有的信息。输出格式要求：用完整的段落或带序号的列表呈现，不要每句话单独换行。'
+      : '你是用户的智能助手。请根据用户提供的内容，提炼为结构化、清晰、专业的中文结果。输出格式要求：用完整的段落或带序号的列表呈现，不要每句话单独换行。'
+    setLoading(true)
+    try {
+      const rawResult = await generateChat(fullPrompt, system)
+      const normalized = rawResult
+        .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .replace(/(?<!\n)\n(?!\n)/g, ' ')
+        .trim()
+      // Update this entry's result in local state + store
+      const updated = entries.map(e => e.id === targetId ? { ...e, result: normalized } : e)
+      saveEntries(updated)
+      toast('提炼完成 ✅', 'success')
+    } catch (e: any) {
+      toast('AI 调用失败：' + (e?.message || '未知错误'), 'error')
+    } finally { setLoading(false) }
   }
 
   const formatDate = (iso: string) => {
@@ -227,11 +253,11 @@ function CoachCard({ card, pageId, updateCardField, handleCoachRun, coachLoading
 
                 {/* Run button */}
                 <button
-                  onClick={() => runForEntry(entry)}
+                  onClick={() => runForEntry(entry.id)}
                   className="w-full py-2.5 text-sm font-medium bg-accent text-white rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
-                  disabled={coachLoading}
+                  disabled={loading}
                 >
-                  {coachLoading ? '⏳ AI 处理中...' : '🚀 AI 一键提炼'}
+                  {loading ? '⏳ AI 处理中...' : '🚀 AI 一键提炼'}
                 </button>
 
                 {/* Result display */}
@@ -542,7 +568,7 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
         )
 
       case 'coach':
-        return <CoachCard card={card} pageId={pageId} updateCardField={updateCardField} handleCoachRun={handleCoachRun} coachLoading={coachLoading} toast={toast} />
+        return <CoachCard card={card} pageId={pageId} updateCardField={updateCardField} toast={toast} />
 
       case 'table':
         if (card.tableType === 'projects') {
