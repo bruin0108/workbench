@@ -14,6 +14,173 @@ import { autoFormatText } from '@/utils/autoFormat'
 import SpeakButton from './SpeakButton'
 import { generateChat, hasPaidKey } from '@/utils/ai'
 
+// --- Coach Card: multi-entry speech extraction ---
+interface CoachEntry {
+  id: string
+  prompt: string
+  standard: string
+  result: string
+  createdAt: string
+}
+
+function parseEntries(raw: string | undefined): CoachEntry[] {
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed)) return parsed
+  } catch { /* ignore */ }
+  // Migrate old single-field format to entries
+  return []
+}
+
+function CoachCard({ card, pageId, updateCardField, handleCoachRun, coachLoading, toast }: {
+  card: Card; pageId: string;
+  updateCardField: (pid: string, cid: string, field: string, val: string) => void;
+  handleCoachRun: (entryId?: string) => Promise<void>;
+  coachLoading: boolean; toast: (msg: string, type?: string) => void;
+}) {
+  const [entries, setEntries] = useState<CoachEntry[]>(() => {
+    const stored = parseEntries(card.fields.coach_entries)
+    // Migrate old fields if no entries yet and old data exists
+    if (stored.length === 0 && (card.fields.prompt || card.fields.result)) {
+      const migrated: CoachEntry[] = [{
+        id: 'migrated-1',
+        prompt: card.fields.prompt || '',
+        standard: card.fields.standard || '',
+        result: card.fields.result || '',
+        createdAt: new Date().toISOString(),
+      }]
+      // Save migrated format
+      setTimeout(() => updateCardField(pageId, card.id, 'coach_entries', JSON.stringify(migrated)), 0)
+      return migrated
+    }
+    return stored
+  })
+  const [activeId, setActiveId] = useState<string | null>(null)
+
+  const saveEntries = (updated: CoachEntry[]) => {
+    setEntries(updated)
+    updateCardField(pageId, card.id, 'coach_entries', JSON.stringify(updated))
+  }
+
+  const addEntry = () => {
+    const entry: CoachEntry = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      prompt: '',
+      standard: '',
+      result: '',
+      createdAt: new Date().toISOString(),
+    }
+    saveEntries([entry, ...entries])
+    setActiveId(entry.id)
+  }
+
+  const removeEntry = (id: string) => {
+    saveEntries(entries.filter(e => e.id !== id))
+    if (activeId === id) setActiveId(null)
+  }
+
+  const updateEntry = (id: string, field: keyof CoachEntry, value: string) => {
+    saveEntries(entries.map(e => e.id === id ? { ...e, [field]: value } : e))
+  }
+
+  // Clean broken lines on paste into textarea
+  const cleanPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    e.preventDefault()
+    const text = e.clipboardData.getData('text')
+    const cleaned = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/(?<!\n)\n(?!\n)/g, ' ')
+    document.execCommand('insertText', false, cleaned)
+  }
+
+  const runForEntry = async (entry: CoachEntry) => {
+    if (!hasPaidKey()) { toast('请先在顶部「⚙️ AI 配置」配置 API 密钥', 'info'); return }
+    if (entry.prompt.trim().length < 5) { toast('请先填写讲话内容', 'info'); return }
+    await handleCoachRun(entry.id)
+  }
+
+  const formatDate = (iso: string) => {
+    try { return new Date(iso).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) }
+    catch { return iso }
+  }
+
+  return (
+    <div className="coach-card space-y-3">
+      <button onClick={addEntry} className="coach-btn text-xs">+ 新增一条记录</button>
+      {entries.length === 0 && (
+        <div className="text-xs text-muted/60 text-center py-4">暂无记录，点击上方按钮添加</div>
+      )}
+      {entries.map((entry) => {
+        const isOpen = activeId === entry.id
+        return (
+          <div key={entry.id} className="border border-[var(--border)] rounded-lg overflow-hidden">
+            {/* Entry header */}
+            <button
+              className="w-full flex items-center justify-between px-3 py-2 bg-[var(--bg-card)] hover:bg-[var(--bg)] transition-colors"
+              onClick={() => setActiveId(isOpen ? null : entry.id)}
+            >
+              <span className="text-xs font-medium text-[var(--ink)]">
+                📝 {formatDate(entry.createdAt)}
+                {entry.result ? ' ✅ 已提炼' : entry.prompt ? ' ⏳ 待提炼' : ''}
+                {entry.prompt.slice(0, 30) ? ` · ${entry.prompt.slice(0, 30)}...` : ''}
+              </span>
+              <span className="flex items-center gap-1">
+                <span
+                  className="text-muted/40 hover:text-red-500 cursor-pointer text-xs px-1"
+                  onClick={(e) => { e.stopPropagation(); removeEntry(entry.id) }}
+                >删除</span>
+                {isOpen ? <ChevronDown size={14} className="text-muted" /> : <ChevronRight size={14} className="text-muted" />}
+              </span>
+            </button>
+
+            {/* Entry body */}
+            {isOpen && (
+              <div className="p-3 space-y-3 border-t border-[var(--border)]">
+                <div>
+                  <div className="text-[11px] font-semibold text-muted mb-1">讲话内容</div>
+                  <textarea
+                    className="w-full min-h-[120px] p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
+                    placeholder="粘贴或输入讲话内容（自动清除碎行）..."
+                    value={entry.prompt}
+                    onChange={(e) => updateEntry(entry.id, 'prompt', e.target.value)}
+                    onPaste={cleanPaste}
+                  />
+                </div>
+                <div>
+                  <div className="text-[11px] font-semibold text-muted mb-1">参考范例（可选）</div>
+                  <textarea
+                    className="w-full min-h-[70px] p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
+                    placeholder="粘贴满意的历史结果，AI 会模仿风格..."
+                    value={entry.standard}
+                    onChange={(e) => updateEntry(entry.id, 'standard', e.target.value)}
+                    onPaste={cleanPaste}
+                  />
+                </div>
+                <button
+                  onClick={() => runForEntry(entry)}
+                  className="coach-btn"
+                  disabled={coachLoading}
+                >
+                  {coachLoading ? '⏳ 处理中...' : '🚀 AI 一键提炼'}
+                </button>
+                {entry.result && (
+                  <div>
+                    <div className="text-[11px] font-semibold text-muted mb-1">结果</div>
+                    <div className="p-2.5 rounded-lg bg-[var(--bg)] text-sm text-[var(--ink)] leading-relaxed">
+                      <Markdown text={autoFormatText(
+                        entry.result.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/(?<!\n)\n(?!\n)/g, '')
+                      )} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 /**
  * Smart field renderer:
  * - Short text (< 60 chars, no newlines): inline contentEditable (quick edit)
@@ -152,16 +319,49 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
   }
 
   const [coachLoading, setCoachLoading] = useState(false)
-  const handleCoachRun = async () => {
+  const handleCoachRun = async (entryId?: string) => {
     if (!hasPaidKey()) {
-      toast('请先在顶部「⚙️ AI 配置」配置 API 密钥（Groq 免费）', 'info')
+      toast('请先在顶部「⚙️ AI 配置」配置 API 密钥', 'info')
       return
     }
+
+    // New entries-based mode
+    if (entryId) {
+      const raw = card.fields.coach_entries
+      let entries: CoachEntry[] = []
+      try { entries = raw ? JSON.parse(raw) : [] } catch { entries = [] }
+      const entry = entries.find(e => e.id === entryId)
+      if (!entry || !entry.prompt || entry.prompt.trim().length < 5) {
+        toast('请先填写讲话内容', 'info'); return
+      }
+      const standard = entry.standard || ''
+      const fullPrompt = standard.trim().length > 0
+        ? `【讲话内容】\n${entry.prompt}\n\n【参考范例】（这是一条之前做过的、用户满意的结果，请严格模仿它的风格、格式、结构和语言习惯来处理上面的新内容）\n${standard}`
+        : entry.prompt
+      setCoachLoading(true)
+      try {
+        const system = standard.trim().length > 0
+          ? '你是用户的智能助手。用户会提供一段新内容和一条参考范例。请仔细分析范例的风格、格式、结构、语言特点，然后用完全一致的方式处理新内容。不要编造新内容中没有的信息。输出格式要求：用完整的段落或带序号的列表呈现，不要每句话单独换行。'
+          : '你是用户的智能助手。请根据用户提供的内容，提炼为结构化、清晰、专业的中文结果。输出格式要求：用完整的段落或带序号的列表呈现，不要每句话单独换行。'
+        const rawResult = await generateChat(fullPrompt, system)
+        const normalized = rawResult
+          .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+          .replace(/\n{3,}/g, '\n\n')
+          .replace(/(?<!\n)\n(?!\n)/g, ' ')
+          .trim()
+        // Update only this entry's result
+        const updated = entries.map(e => e.id === entryId ? { ...e, result: normalized } : e)
+        updateCardField(pageId, card.id, 'coach_entries', JSON.stringify(updated))
+        toast('提炼完成 ✅', 'success')
+      } catch (e: any) {
+        toast('AI 调用失败：' + (e?.message || '未知错误'), 'error')
+      } finally { setCoachLoading(false) }
+      return
+    }
+
+    // Legacy single-field mode (backward compat)
     const promptText = card.fields.prompt || ''
-    if (promptText.trim().length < 5) {
-      toast('请先在上方填写要提炼的讲话内容', 'info')
-      return
-    }
+    if (promptText.trim().length < 5) { toast('请先在上方填写要提炼的讲话内容', 'info'); return }
     const standard = card.fields.standard || ''
     const fullPrompt = standard.trim().length > 0
       ? `【讲话内容】\n${promptText}\n\n【参考范例】（这是一条之前做过的、用户满意的结果，请严格模仿它的风格、格式、结构和语言习惯来处理上面的新内容）\n${standard}`
@@ -172,20 +372,16 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
         ? '你是用户的智能助手。用户会提供一段新内容和一条参考范例。请仔细分析范例的风格、格式、结构、语言特点，然后用完全一致的方式处理新内容。不要编造新内容中没有的信息。输出格式要求：用完整的段落或带序号的列表呈现，不要每句话单独换行。'
         : '你是用户的智能助手。请根据用户提供的内容，提炼为结构化、清晰、专业的中文结果。输出格式要求：用完整的段落或带序号的列表呈现，不要每句话单独换行。'
       const rawResult = await generateChat(fullPrompt, system)
-      // Normalize AI output: collapse excessive single newlines into proper paragraphs
       const normalized = rawResult
         .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-        .replace(/\n{3,}/g, '\n\n')           // 3+ consecutive → 2 (blank line)
-        .replace(/(?<!\n)\n(?!\n)/g, ' ')       // single \n → space (join broken lines)
-        .replace(/\n\n/g, '\n\n')               // ensure consistent double
+        .replace(/\n{3,}/g, '\n\n')
+        .replace(/(?<!\n)\n(?!\n)/g, ' ')
         .trim()
       updateCardField(pageId, card.id, 'result', normalized)
       toast('提炼完成，结果已写入卡片', 'success')
     } catch (e: any) {
       toast('AI 调用失败：' + (e?.message || '未知错误'), 'error')
-    } finally {
-      setCoachLoading(false)
-    }
+    } finally { setCoachLoading(false) }
   }
 
   const [collapsedEntries, setCollapsedEntries] = useState<Set<number>>(new Set())
@@ -272,62 +468,7 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
         )
 
       case 'coach':
-        return (
-          <div className="coach-card">
-            <div className="mb-3">
-              <div className="text-[11px] font-semibold text-muted mb-1.5">讲话内容</div>
-              <textarea
-                className="w-full min-h-[200px] p-3 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
-                placeholder="在此粘贴或输入领导讲话内容..."
-                value={card.fields.prompt || ''}
-                onChange={(e) => updateCardField(pageId, card.id, 'prompt', e.target.value)}
-              />
-            </div>
-            <div className="mb-3">
-              <div className="text-[11px] font-semibold text-muted mb-1.5">参考范例（可选）</div>
-              <textarea
-                className="w-full min-h-[100px] p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
-                placeholder="粘贴一条之前做过的、你满意的结果，AI 会模仿它的风格和格式来处理新内容..."
-                value={card.fields.standard || ''}
-                onChange={(e) => updateCardField(pageId, card.id, 'standard', e.target.value)}
-              />
-            </div>
-            <div className="flex gap-1.5 flex-wrap">
-              <button
-                onClick={handleCoachRun}
-                className="coach-btn"
-                disabled={coachLoading}
-              >
-                {coachLoading ? '⏳ AI 处理中...' : '🚀 AI 一键提炼'}
-              </button>
-            </div>
-            {card.fields.result !== undefined && (
-              <div className="mt-3">
-                <div className="text-[11px] font-semibold text-muted mb-1.5">结果</div>
-                <FieldContent
-                  value={card.fields.result}
-                  placeholder="AI 分析结果会显示在这里..."
-                  onSave={handleFieldBlur('result')}
-                  renderKey={renderKey}
-                />
-              </div>
-            )}
-            {['daily', 'focus', 'milestone', 'progress', 'adjust', 'nextFocus'].map((key) => {
-              if (card.fields[key] === undefined) return null
-              return (
-                <div key={key} className="field-row">
-                  <span className="field-label">{formatFieldLabel(key)}</span>
-                  <FieldContent
-                    value={card.fields[key]}
-                    placeholder="点击编辑..."
-                    onSave={handleFieldBlur(key)}
-                    renderKey={renderKey}
-                  />
-                </div>
-              )
-            })}
-          </div>
-        )
+        return <CoachCard card={card} pageId={pageId} updateCardField={updateCardField} handleCoachRun={handleCoachRun} coachLoading={coachLoading} toast={toast} />
 
       case 'table':
         if (card.tableType === 'projects') {
