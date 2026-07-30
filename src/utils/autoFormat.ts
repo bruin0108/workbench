@@ -28,13 +28,27 @@ export function autoFormatText(text: string): string {
     const hasNoBlankLines = !result.includes('\n\n')
     // If average line is short AND no paragraph breaks → likely broken AI output
     if (avgLen < 40 && hasNoBlankLines) {
-      // Merge all lines into one flow, then re-split by sentence endings
-      const merged = rawLines.map(l => l.trim()).join('')
-      // Re-insert breaks only at real sentence boundaries
-      result = merged.replace(/([。！？!?])\s*/g, '$1\n')
-      // Also break before 【 markers for sections
+      // Treat as prose: join lines, break only where a line already ends with
+      // sentence-ending punctuation (。！？) or before 【 section markers / numbered items.
+      const merged: string[] = []
+      for (let i = 0; i < rawLines.length; i++) {
+        const line = rawLines[i].trim()
+        if (i === 0) {
+          merged.push(line)
+        } else {
+          const prev = rawLines[i - 1].trim()
+          // If previous line ended with sentence punctuation → new paragraph
+          if (/[。！？!?]$/.test(prev)) {
+            merged.push('\n' + line)
+          } else {
+            // Otherwise append to current paragraph (no break)
+            merged[merged.length - 1] += line
+          }
+        }
+      }
+      result = merged.join('')
+      // Normalize section markers / numbered items to new lines
       result = result.replace(/([^\n])\s*【/g, '$1\n【')
-      // Break before numbered items
       result = result.replace(/([^\n])\s*(?=(?:\d+[.、]\s)|(?:[①②③④⑤⑥⑦⑧⑨⑩]))/g, '$1\n')
     }
   }
