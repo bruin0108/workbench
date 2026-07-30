@@ -88,13 +88,18 @@ function FieldContent({ value, placeholder, onSave, renderKey }: {
 
   // --- Long text: Markdown view mode ---
   if (isLong) {
+    // Pre-process: collapse AI broken-line output (single \n between text → join)
+    // This handles both old stored data and new AI results
+    const cleanValue = value
+      ? value.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/(?<!\n)\n(?!\n)/g, '')
+      : value
     return (
       <div
         className="field-value-rich"
         onClick={() => setEditing(true)}
       >
-        {value ? (
-          <Markdown text={autoFormatText(value)} />
+        {cleanValue ? (
+          <Markdown text={autoFormatText(cleanValue)} />
         ) : (
           <span className="field-empty-hint">{placeholder}</span>
         )}
