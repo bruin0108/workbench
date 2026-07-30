@@ -19,38 +19,50 @@ export function autoFormatText(text: string): string {
   let result = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
 
   // --- Pre-step: Detect & merge AI broken-line output ---
-  // Pattern: many short lines (avg < 35 chars) with no blank-line separators
-  // This is typical of LLM output where every sentence/phrase is on its own line.
-  // Merge consecutive short lines into proper paragraphs before formatting.
+  // Pattern: many short lines (avg < 50 chars) with no blank-line separators
+  // This is typical of LLM output where every phrase is on its own line.
+  // Merge into proper paragraphs and return early — skip all splitting steps.
   const rawLines = result.split('\n').filter(l => l.trim().length > 0)
-  if (rawLines.length >= 5) {
+  let aiBrokenMerged = false
+  if (rawLines.length >= 4) {
     const avgLen = rawLines.reduce((s, l) => s + l.trim().length, 0) / rawLines.length
     const hasNoBlankLines = !result.includes('\n\n')
     // If average line is short AND no paragraph breaks → likely broken AI output
-    if (avgLen < 40 && hasNoBlankLines) {
-      // Treat as prose: join lines, break only where a line already ends with
-      // sentence-ending punctuation (。！？) or before 【 section markers / numbered items.
-      const merged: string[] = []
+    if (avgLen < 50 && hasNoBlankLines) {
+      aiBrokenMerged = true
+      const paragraphs: string[] = []
+      let currentPara = ''
       for (let i = 0; i < rawLines.length; i++) {
         const line = rawLines[i].trim()
-        if (i === 0) {
-          merged.push(line)
+        if (!line) continue
+        // Start new paragraph only at clear boundaries:
+        // - Line ends with 。！？ AND next line starts a new thought (capital/number/mark)
+        // - Line is a section marker 【...】
+        // - Line is a numbered item
+        const prevEndsSentence = /[。！？!?]$/.test(currentPara)
+        const nextStartsNew = /^[【①②③④⑤⑥⑦⑧⑨⑩\d「"]/i.test(line)
+        const isMarker = /^【[^】]+】$/.test(line) || /^\d+[.、]/.test(line)
+        if ((prevEndsSentence && nextStartsNew) || isMarker) {
+          if (currentPara) paragraphs.push(currentPara)
+          currentPara = line
         } else {
-          const prev = rawLines[i - 1].trim()
-          // If previous line ended with sentence punctuation → new paragraph
-          if (/[。！？!?]$/.test(prev)) {
-            merged.push('\n' + line)
-          } else {
-            // Otherwise append to current paragraph (no break)
-            merged[merged.length - 1] += line
-          }
+          // Append to current paragraph with proper spacing
+          currentPara += (currentPara && !/[：:，,、]$/.test(currentPara) ? '' : '') + line
         }
       }
-      result = merged.join('')
-      // Normalize section markers / numbered items to new lines
-      result = result.replace(/([^\n])\s*【/g, '$1\n【')
-      result = result.replace(/([^\n])\s*(?=(?:\d+[.、]\s)|(?:[①②③④⑤⑥⑦⑧⑨⑩]))/g, '$1\n')
+      if (currentPara) paragraphs.push(currentPara)
+      // Join paragraphs with double newlines (Markdown paragraph spacing)
+      result = paragraphs.join('\n\n')
     }
+  }
+
+  // If we merged broken AI output, clean up minimally and return — don't re-split!
+  if (aiBrokenMerged) {
+    // Convert 【...】 markers to headings
+    result = result.replace(/^【([^】]+)】\s*/gm, '### $1\n')
+    // Clean up excessive blank lines
+    result = result.replace(/\n{3,}/g, '\n\n')
+    return result.trim()
   }
 
   // If text already has Markdown structure (double newlines, headings, etc.), 
