@@ -213,11 +213,9 @@ export default function PageView() {
           </button>
         </>
       )}
-      {currentPage === 'skills' && (
-        <button onClick={() => setShowApiModal(true)} className="toolbar-btn flex items-center gap-1">
-          ⚙️ AI 配置
-        </button>
-      )}
+      <button onClick={() => setShowApiModal(true)} className="toolbar-btn flex items-center gap-1">
+        ⚙️ AI 配置
+      </button>
     </div>
   )
 
