@@ -23,13 +23,46 @@ interface CoachEntry {
   createdAt: string
 }
 
+/** Aggressively merge broken-line text into readable paragraphs */
+function mergeBrokenLines(raw: string): string {
+  if (!raw) return ''
+  let t = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  // Phase 1: If many short lines with no blank lines → merge aggresively
+  const lines = t.split('\n')
+  const nonEmpty = lines.filter(l => l.trim().length > 0)
+  if (nonEmpty.length >= 3 && !t.includes('\n\n')) {
+    const avgLen = nonEmpty.reduce((s, l) => s + l.trim().length, 0) / nonEmpty.length
+    if (avgLen < 60) {
+      // Merge all short lines into paragraphs
+      const paras: string[] = []
+      let cur = ''
+      for (const l of nonEmpty) {
+        const trimmed = l.trim()
+        // New paragraph at clear boundaries
+        if (/[。！？!?]$/.test(cur) && /^[【①②③④⑤⑥⑦⑧⑨⑩\d「"'\d]/.test(trimmed)) {
+          paras.push(cur); cur = trimmed
+        } else if (/^【[^】]+】$/.test(trimmed) || /^\d+[.、]\s/.test(trimmed)) {
+          if (cur) paras.push(cur)
+          cur = trimmed
+        } else {
+          cur += (cur && !/[：:：，,、]$/.test(cur) ? ' ' : '') + trimmed
+        }
+      }
+      if (cur) paras.push(cur)
+      t = paras.join('\n\n')
+    }
+  }
+  // Phase 2: Clean up remaining single newlines (join mid-sentence breaks)
+  t = t.replace(/(?<![。！？!?…\n])\n(?![\n])/g, '')
+  return t.trim()
+}
+
 function parseEntries(raw: string | undefined): CoachEntry[] {
   if (!raw) return []
   try {
     const parsed = JSON.parse(raw)
     if (Array.isArray(parsed)) return parsed
   } catch { /* ignore */ }
-  // Migrate old single-field format to entries
   return []
 }
 
@@ -50,12 +83,12 @@ function CoachCard({ card, pageId, updateCardField, handleCoachRun, coachLoading
         result: card.fields.result || '',
         createdAt: new Date().toISOString(),
       }]
-      // Save migrated format
       setTimeout(() => updateCardField(pageId, card.id, 'coach_entries', JSON.stringify(migrated)), 0)
       return migrated
     }
     return stored
   })
+  // Default: all collapsed (null = all closed)
   const [activeId, setActiveId] = useState<string | null>(null)
 
   const saveEntries = (updated: CoachEntry[]) => {
@@ -103,40 +136,74 @@ function CoachCard({ card, pageId, updateCardField, handleCoachRun, coachLoading
     catch { return iso }
   }
 
+  // Get a short preview of the result (first ~60 chars, merged)
+  const resultPreview = (result: string) => {
+    if (!result) return ''
+    const merged = mergeBrokenLines(result)
+    return merged.length > 60 ? merged.slice(0, 60) + '...' : merged
+  }
+
   return (
-    <div className="coach-card space-y-3">
-      <button onClick={addEntry} className="coach-btn text-xs">+ 新增一条记录</button>
+    <div className="coach-card space-y-2">
+      {/* Top add button */}
+      <button onClick={addEntry} className="w-full py-2 text-xs font-medium text-accent border border-dashed border-accent/40 rounded-lg hover:bg-accent/5 transition-colors">
+        ＋ 新增一条记录
+      </button>
+
       {entries.length === 0 && (
-        <div className="text-xs text-muted/60 text-center py-4">暂无记录，点击上方按钮添加</div>
+        <div className="text-xs text-muted/50 text-center py-6">暂无记录，点击上方按钮添加</div>
       )}
+
       {entries.map((entry) => {
         const isOpen = activeId === entry.id
         return (
-          <div key={entry.id} className="border border-[var(--border)] rounded-lg overflow-hidden">
-            {/* Entry header */}
+          <div key={entry.id} className="border border-[var(--border)] rounded-xl overflow-hidden bg-[var(--bg-card)]">
+            {/* ===== Collapsible Header ===== */}
             <button
-              className="w-full flex items-center justify-between px-3 py-2 bg-[var(--bg-card)] hover:bg-[var(--bg)] transition-colors"
+              className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[var(--bg)] transition-colors text-left"
               onClick={() => setActiveId(isOpen ? null : entry.id)}
             >
-              <span className="text-xs font-medium text-[var(--ink)]">
-                📝 {formatDate(entry.createdAt)}
-                {entry.result ? ' ✅ 已提炼' : entry.prompt ? ' ⏳ 待提炼' : ''}
-                {entry.prompt.slice(0, 30) ? ` · ${entry.prompt.slice(0, 30)}...` : ''}
+              {/* Status icon */}
+              <span className="shrink-0 mt-0.5">
+                {entry.result ? '✅' : entry.prompt ? '⏳' : '📝'}
               </span>
-              <span className="flex items-center gap-1">
+
+              {/* Main info */}
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-medium text-[var(--ink)] truncate">
+                  {entry.prompt ? entry.prompt.slice(0, 35).replace(/\n/g, ' ') : '(空记录)'}
+                  {entry.prompt.length > 35 ? '...' : ''}
+                </div>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-[10px] text-muted">{formatDate(entry.createdAt)}</span>
+                  {entry.result && (
+                    <span className="text-[10px] text-green-600/80">已提炼</span>
+                  )}
+                </div>
+                {/* Result preview when collapsed */}
+                {isOpen ? null : (entry.result ? (
+                  <div className="text-[11px] text-muted/70 mt-1 line-clamp-2 leading-relaxed">
+                    {resultPreview(entry.result)}
+                  </div>
+                ) : null)}
+              </div>
+
+              {/* Right side controls */}
+              <span className="flex items-center gap-1 shrink-0">
                 <span
-                  className="text-muted/40 hover:text-red-500 cursor-pointer text-xs px-1"
+                  className="text-[10px] text-muted/40 hover:text-red-500 cursor-pointer px-1 py-0.5 rounded hover:bg-red-5/10 transition-colors"
                   onClick={(e) => { e.stopPropagation(); removeEntry(entry.id) }}
-                >删除</span>
+                >删</span>
                 {isOpen ? <ChevronDown size={14} className="text-muted" /> : <ChevronRight size={14} className="text-muted" />}
               </span>
             </button>
 
-            {/* Entry body */}
+            {/* ===== Expanded Body ===== */}
             {isOpen && (
-              <div className="p-3 space-y-3 border-t border-[var(--border)]">
+              <div className="px-3 pb-3 space-y-3 border-t border-[var(--border)] pt-3">
+                {/* Prompt input */}
                 <div>
-                  <div className="text-[11px] font-semibold text-muted mb-1">讲话内容</div>
+                  <div className="text-[11px] font-semibold text-muted mb-1">📝 讲话内容</div>
                   <textarea
                     className="w-full min-h-[120px] p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
                     placeholder="粘贴或输入讲话内容（自动清除碎行）..."
@@ -145,8 +212,10 @@ function CoachCard({ card, pageId, updateCardField, handleCoachRun, coachLoading
                     onPaste={cleanPaste}
                   />
                 </div>
+
+                {/* Standard / reference example */}
                 <div>
-                  <div className="text-[11px] font-semibold text-muted mb-1">参考范例（可选）</div>
+                  <div className="text-[11px] font-semibold text-muted mb-1">📎 参考范例（可选）</div>
                   <textarea
                     className="w-full min-h-[70px] p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
                     placeholder="粘贴满意的历史结果，AI 会模仿风格..."
@@ -155,20 +224,25 @@ function CoachCard({ card, pageId, updateCardField, handleCoachRun, coachLoading
                     onPaste={cleanPaste}
                   />
                 </div>
+
+                {/* Run button */}
                 <button
                   onClick={() => runForEntry(entry)}
-                  className="coach-btn"
+                  className="w-full py-2.5 text-sm font-medium bg-accent text-white rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
                   disabled={coachLoading}
                 >
-                  {coachLoading ? '⏳ 处理中...' : '🚀 AI 一键提炼'}
+                  {coachLoading ? '⏳ AI 处理中...' : '🚀 AI 一键提炼'}
                 </button>
+
+                {/* Result display */}
                 {entry.result && (
                   <div>
-                    <div className="text-[11px] font-semibold text-muted mb-1">结果</div>
-                    <div className="p-2.5 rounded-lg bg-[var(--bg)] text-sm text-[var(--ink)] leading-relaxed">
-                      <Markdown text={autoFormatText(
-                        entry.result.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/(?<!\n)\n(?!\n)/g, '')
-                      )} />
+                    <div className="text-[11px] font-semibold text-muted mb-1.5 flex items-center gap-1">
+                      <span>📋 提炼结果</span>
+                      <span className="text-[10px] font-normal text-muted/50">(已自动合并碎行)</span>
+                    </div>
+                    <div className="p-3 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-sm text-[var(--ink)] leading-relaxed max-h-[400px] overflow-y-auto">
+                      <Markdown text={autoFormatText(mergeBrokenLines(entry.result))} />
                     </div>
                   </div>
                 )}
