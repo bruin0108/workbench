@@ -259,7 +259,7 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
             <div className="mb-3">
               <div className="text-[11px] font-semibold text-muted mb-1.5">讲话内容</div>
               <textarea
-                className="w-full min-h-[80px] p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
+                className="w-full min-h-[200px] p-3 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
                 placeholder="在此粘贴或输入领导讲话内容..."
                 value={card.fields.prompt || ''}
                 onChange={(e) => updateCardField(pageId, card.id, 'prompt', e.target.value)}
