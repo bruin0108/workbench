@@ -157,10 +157,14 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
       toast('请先在上方填写要提炼的讲话内容', 'info')
       return
     }
+    const standard = card.fields.standard || ''
+    const fullPrompt = standard.trim().length > 0
+      ? `【讲话内容】\n${promptText}\n\n【输出要求】\n${standard}\n\n请根据以上讲话内容和输出要求，认真完成任务，不要编造讲话中未出现的内容。`
+      : promptText
     setCoachLoading(true)
     try {
       const system = '你是用户的智能助手。请根据用户在下方提供的内容和要求，认真完成任务，输出结构化、清晰、专业的中文结果，不要编造用户未提供的内容。'
-      const result = await generateChat(promptText, system)
+      const result = await generateChat(fullPrompt, system)
       updateCardField(pageId, card.id, 'result', result)
       toast('提炼完成，结果已写入卡片', 'success')
     } catch (e: any) {
@@ -263,6 +267,15 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                 placeholder="在此粘贴或输入领导讲话内容..."
                 value={card.fields.prompt || ''}
                 onChange={(e) => updateCardField(pageId, card.id, 'prompt', e.target.value)}
+              />
+            </div>
+            <div className="mb-3">
+              <div className="text-[11px] font-semibold text-muted mb-1.5">输出要求（可选）</div>
+              <textarea
+                className="w-full min-h-[70px] p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
+                placeholder="例：提炼3条核心观点；找出金句；按『战略方向/执行要求/对学员期望』三段输出；语言正式..."
+                value={card.fields.standard || ''}
+                onChange={(e) => updateCardField(pageId, card.id, 'standard', e.target.value)}
               />
             </div>
             <div className="flex gap-1.5 flex-wrap">
