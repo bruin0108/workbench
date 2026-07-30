@@ -159,11 +159,13 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
     }
     const standard = card.fields.standard || ''
     const fullPrompt = standard.trim().length > 0
-      ? `【讲话内容】\n${promptText}\n\n【输出要求】\n${standard}\n\n请根据以上讲话内容和输出要求，认真完成任务，不要编造讲话中未出现的内容。`
+      ? `【讲话内容】\n${promptText}\n\n【参考范例】（这是一条之前做过的、用户满意的结果，请严格模仿它的风格、格式、结构和语言习惯来处理上面的新内容）\n${standard}`
       : promptText
     setCoachLoading(true)
     try {
-      const system = '你是用户的智能助手。请根据用户在下方提供的内容和要求，认真完成任务，输出结构化、清晰、专业的中文结果，不要编造用户未提供的内容。'
+      const system = standard.trim().length > 0
+        ? '你是用户的智能助手。用户会提供一段新内容和一条参考范例。请仔细分析范例的风格、格式、结构、语言特点，然后用完全一致的方式处理新内容。不要编造新内容中没有的信息。'
+        : '你是用户的智能助手。请根据用户提供的内容，提炼为结构化、清晰、专业的中文结果。'
       const result = await generateChat(fullPrompt, system)
       updateCardField(pageId, card.id, 'result', result)
       toast('提炼完成，结果已写入卡片', 'success')
@@ -270,10 +272,10 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
               />
             </div>
             <div className="mb-3">
-              <div className="text-[11px] font-semibold text-muted mb-1.5">输出要求（可选）</div>
+              <div className="text-[11px] font-semibold text-muted mb-1.5">参考范例（可选）</div>
               <textarea
-                className="w-full min-h-[70px] p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
-                placeholder="例：提炼3条核心观点；找出金句；按『战略方向/执行要求/对学员期望』三段输出；语言正式..."
+                className="w-full min-h-[100px] p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
+                placeholder="粘贴一条之前做过的、你满意的结果，AI 会模仿它的风格和格式来处理新内容..."
                 value={card.fields.standard || ''}
                 onChange={(e) => updateCardField(pageId, card.id, 'standard', e.target.value)}
               />
