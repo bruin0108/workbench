@@ -98,7 +98,7 @@ async function generateViaPaid(prompt: string, system?: string): Promise<string>
   return data.choices?.[0]?.message?.content || '生成结果为空，请重试'
 }
 
-function hasPaidKey(): boolean {
+export function hasPaidKey(): boolean {
   return !!(import.meta.env.VITE_OPENROUTER_KEY || localStorage.getItem('wb_ai_key'))
 }
 

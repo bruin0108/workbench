@@ -12,6 +12,7 @@ import ErrorSummary from './ErrorSummary'
 import { Markdown } from './Markdown'
 import { autoFormatText } from '@/utils/autoFormat'
 import SpeakButton from './SpeakButton'
+import { generateChat, hasPaidKey } from '@/utils/ai'
 
 /**
  * Smart field renderer:
@@ -145,8 +146,28 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
     updateCardField(pageId, card.id, key, text)
   }
 
-  const handleCoachCopy = (text: string) => {
-    navigator.clipboard.writeText(text)
+  const [coachLoading, setCoachLoading] = useState(false)
+  const handleCoachRun = async () => {
+    if (!hasPaidKey()) {
+      toast('请先在顶部「⚙️ AI 配置」配置 API 密钥（Groq 免费）', 'info')
+      return
+    }
+    const promptText = card.fields.prompt || ''
+    if (promptText.trim().length < 5) {
+      toast('请先在上方填写要提炼的讲话内容', 'info')
+      return
+    }
+    setCoachLoading(true)
+    try {
+      const system = '你是用户的智能助手。请根据用户在下方提供的内容和要求，认真完成任务，输出结构化、清晰、专业的中文结果，不要编造用户未提供的内容。'
+      const result = await generateChat(promptText, system)
+      updateCardField(pageId, card.id, 'result', result)
+      toast('提炼完成，结果已写入卡片', 'success')
+    } catch (e: any) {
+      toast('AI 调用失败：' + (e?.message || '未知错误'), 'error')
+    } finally {
+      setCoachLoading(false)
+    }
   }
 
   const [collapsedEntries, setCollapsedEntries] = useState<Set<number>>(new Set())
@@ -237,10 +258,11 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
           <div className="coach-card">
             <div className="flex gap-1.5 flex-wrap">
               <button
-                onClick={() => handleCoachCopy(card.fields.prompt || '')}
+                onClick={handleCoachRun}
                 className="coach-btn"
+                disabled={coachLoading}
               >
-                🚀 复制提示词给AI
+                {coachLoading ? '⏳ AI 处理中...' : '🚀 AI 一键提炼'}
               </button>
             </div>
             {card.fields.result !== undefined && (
