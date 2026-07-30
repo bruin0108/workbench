@@ -164,10 +164,17 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
     setCoachLoading(true)
     try {
       const system = standard.trim().length > 0
-        ? '你是用户的智能助手。用户会提供一段新内容和一条参考范例。请仔细分析范例的风格、格式、结构、语言特点，然后用完全一致的方式处理新内容。不要编造新内容中没有的信息。'
-        : '你是用户的智能助手。请根据用户提供的内容，提炼为结构化、清晰、专业的中文结果。'
-      const result = await generateChat(fullPrompt, system)
-      updateCardField(pageId, card.id, 'result', result)
+        ? '你是用户的智能助手。用户会提供一段新内容和一条参考范例。请仔细分析范例的风格、格式、结构、语言特点，然后用完全一致的方式处理新内容。不要编造新内容中没有的信息。输出格式要求：用完整的段落或带序号的列表呈现，不要每句话单独换行。'
+        : '你是用户的智能助手。请根据用户提供的内容，提炼为结构化、清晰、专业的中文结果。输出格式要求：用完整的段落或带序号的列表呈现，不要每句话单独换行。'
+      const rawResult = await generateChat(fullPrompt, system)
+      // Normalize AI output: collapse excessive single newlines into proper paragraphs
+      const normalized = rawResult
+        .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')           // 3+ consecutive → 2 (blank line)
+        .replace(/(?<!\n)\n(?!\n)/g, ' ')       // single \n → space (join broken lines)
+        .replace(/\n\n/g, '\n\n')               // ensure consistent double
+        .trim()
+      updateCardField(pageId, card.id, 'result', normalized)
       toast('提炼完成，结果已写入卡片', 'success')
     } catch (e: any) {
       toast('AI 调用失败：' + (e?.message || '未知错误'), 'error')
