@@ -18,6 +18,27 @@ export function autoFormatText(text: string): string {
   // Normalize Windows line endings
   let result = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
 
+  // --- Pre-step: Detect & merge AI broken-line output ---
+  // Pattern: many short lines (avg < 35 chars) with no blank-line separators
+  // This is typical of LLM output where every sentence/phrase is on its own line.
+  // Merge consecutive short lines into proper paragraphs before formatting.
+  const rawLines = result.split('\n').filter(l => l.trim().length > 0)
+  if (rawLines.length >= 5) {
+    const avgLen = rawLines.reduce((s, l) => s + l.trim().length, 0) / rawLines.length
+    const hasNoBlankLines = !result.includes('\n\n')
+    // If average line is short AND no paragraph breaks → likely broken AI output
+    if (avgLen < 40 && hasNoBlankLines) {
+      // Merge all lines into one flow, then re-split by sentence endings
+      const merged = rawLines.map(l => l.trim()).join('')
+      // Re-insert breaks only at real sentence boundaries
+      result = merged.replace(/([。！？!?])\s*/g, '$1\n')
+      // Also break before 【 markers for sections
+      result = result.replace(/([^\n])\s*【/g, '$1\n【')
+      // Break before numbered items
+      result = result.replace(/([^\n])\s*(?=(?:\d+[.、]\s)|(?:[①②③④⑤⑥⑦⑧⑨⑩]))/g, '$1\n')
+    }
+  }
+
   // If text already has Markdown structure (double newlines, headings, etc.), 
   // still process long lines but don't skip entirely
   const hasMarkdownStructure = /^#{1,4}\s/m.test(result) 
