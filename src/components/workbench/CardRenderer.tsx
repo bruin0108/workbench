@@ -104,8 +104,8 @@ function CoachCard({ card, pageId, updateCardField, toast }: {
       ? `【讲话内容】\n${inputPrompt}\n\n【参考范例】（这是一条之前做过的、用户满意的结果，请严格模仿它的风格、格式、结构和语言习惯来处理上面的新内容）\n${standard}`
       : inputPrompt
     const system = standard.length > 0
-      ? '你是用户的智能助手。用户会提供一段新内容和一条参考范例。请仔细分析范例的风格、格式、结构、语言特点，然后用完全一致的方式处理新内容。不要编造新内容中没有的信息。输出格式要求：用完整的段落呈现，绝对不要每句话单独换行，也不要用换行来分隔短句。'
-      : '你是用户的智能助手。请根据用户提供的内容，提炼为结构化、清晰、专业的中文结果。输出格式要求：用完整的段落呈现，绝对不要每句话单独换行，也不要用换行来分隔短句。'
+      ? '你是一位资深的企业培训简报撰写人。用户会提供一段新内容和一条参考范例（满意的过往提炼结果）。请严格模仿范例的风格、格式、结构和语言习惯来处理新内容。文体要求：培训简报风格，300字左右，总分总结构——先点明核心主题，再分述要点（保留1-2个关键案例名作为信息锚点但不展开细节），最后以寄语收尾。核心要点用对仗或排比短句呈现。不要编造原文没有的信息。绝对不要每句话单独换行，不要用换行分隔短句，输出必须是完整的段落。'
+      : '你是一位资深的企业培训简报撰写人。请将用户提供的内容提炼为培训简报。要求：300字左右，总分总结构——先点明核心主题，再分述要点（保留1-2个关键案例名作为信息锚点但不展开细节），最后以寄语收尾。核心要点用对仗或排比短句呈现。不要堆流水账、不按时间线罗列。绝对不要每句话单独换行，输出必须是完整的段落。'
     setLoading(true)
     try {
       const rawResult = await generateChat(fullPrompt, system)
@@ -329,20 +329,22 @@ function FieldContent({ value, placeholder, onSave, renderKey }: {
     )
   }
 
-  // --- Long text: Markdown view mode ---
+  // --- Long text: Markdown view mode (merged broken lines) ---
   if (isLong) {
-    // Pre-process: collapse AI broken-line output (single \n between text → join)
-    // This handles both old stored data and new AI results
-    const cleanValue = value
-      ? value.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/(?<!\n)\n(?!\n)/g, '')
-      : value
+    // Use mergeBrokenLines for aggressive broken-line merging, then render as paragraphs
+    // Do NOT pass through autoFormatText — it re-splits merged text!
+    const merged = value ? mergeBrokenLines(value) : ''
     return (
       <div
-        className="field-value-rich"
+        className="field-value-rich select-text"
         onClick={() => setEditing(true)}
       >
-        {cleanValue ? (
-          <Markdown text={autoFormatText(cleanValue)} />
+        {merged ? (
+          <div className="text-[13px] text-[var(--ink)] leading-relaxed">
+            {merged.split('\n\n').map((para, pi) => (
+              <p key={pi} className="mb-2 last:mb-0">{para}</p>
+            ))}
+          </div>
         ) : (
           <span className="field-empty-hint">{placeholder}</span>
         )}
