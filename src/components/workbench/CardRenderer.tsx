@@ -163,13 +163,13 @@ function CoachCard({ card, pageId, updateCardField, toast }: {
     <div className="coach-card space-y-4">
       {/* ===== TOP: Extraction Module ===== */}
       <div className="space-y-3 p-3 rounded-xl bg-accent/5 border border-accent/20">
-        <div className="text-[12px] font-semibold text-accent flex items-center gap-1">
+        <div className="text-[13px] font-semibold text-accent flex items-center gap-1">
           🤖 AI 提炼模块
         </div>
         <div>
           <div className="text-[13px] font-semibold text-muted mb-1.5">📝 讲话内容</div>
           <textarea
-            className="w-full min-h-[110px] p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[15px] leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
+            className="w-full min-h-[110px] p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[14px] leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
             placeholder="粘贴或输入讲话内容（自动清除碎行）..."
             value={inputPrompt}
             onChange={(e) => setInputPrompt(e.target.value)}
@@ -179,7 +179,7 @@ function CoachCard({ card, pageId, updateCardField, toast }: {
         <div>
           <div className="text-[13px] font-semibold text-muted mb-1.5">📎 参考范例（可选）</div>
           <textarea
-            className="w-full min-h-[60px] p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[15px] leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
+            className="w-full min-h-[60px] p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[14px] leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
             placeholder="粘贴满意的历史结果，AI 会模仿风格..."
             value={inputStandard}
             onChange={(e) => setInputStandard(e.target.value)}
@@ -188,7 +188,7 @@ function CoachCard({ card, pageId, updateCardField, toast }: {
         </div>
         <button
           onClick={runExtraction}
-          className="w-full py-2.5 text-sm font-medium bg-accent text-white rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
+          className="w-full py-2.5 text-[13px] font-medium bg-accent text-white rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
           disabled={loading}
         >
           {loading ? '⏳ AI 处理中...' : '🚀 AI 一键提炼'}
@@ -198,14 +198,14 @@ function CoachCard({ card, pageId, updateCardField, toast }: {
       {/* ===== BOTTOM: Records List ===== */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-[12px] font-semibold text-muted">📋 提炼记录（{records.length}）</span>
+          <span className="text-[13px] font-semibold text-muted">📋 提炼记录（{records.length}）</span>
           <button onClick={addManualRecord} className="text-[13px] text-accent hover:opacity-80 font-medium">
             ＋ 手动添加
           </button>
         </div>
 
         {records.length === 0 && (
-          <div className="text-xs text-muted/50 text-center py-5 border border-dashed border-[var(--border)] rounded-lg">
+          <div className="text-[12px] text-muted/50 text-center py-5 border border-dashed border-[var(--border)] rounded-lg">
             暂无记录，提炼或手动添加
           </div>
         )}
@@ -219,18 +219,18 @@ function CoachCard({ card, pageId, updateCardField, toast }: {
                 className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[var(--bg)] transition-colors text-left"
                 onClick={() => setOpenId(isOpen ? null : rec.id)}
               >
-                <span className="shrink-0 text-[11px]">
+                <span className="shrink-0 text-[12px]">
                   {rec.source === 'ai' ? '🤖' : '✍️'}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <div className="text-[15px] text-[var(--ink)] leading-snug truncate">
+                  <div className="text-[14px] text-[var(--ink)] leading-snug truncate">
                     {rec.content.trim() ? firstLine(rec.content) : <span className="text-muted/50 italic">（空记录，点击编辑）</span>}
                   </div>
                   <div className="text-[12px] text-muted mt-0.5">{formatDate(rec.createdAt)}</div>
                 </div>
                 <span className="flex items-center gap-1 shrink-0">
                   <span
-                    className="text-[10px] text-muted/40 hover:text-red-500 cursor-pointer px-1 py-0.5 rounded transition-colors"
+                    className="text-[11px] text-muted/40 hover:text-red-500 cursor-pointer px-1 py-0.5 rounded transition-colors"
                     onClick={(e) => { e.stopPropagation(); removeRecord(rec.id) }}
                   >删</span>
                   {isOpen ? <ChevronDown size={14} className="text-muted" /> : <ChevronRight size={14} className="text-muted" />}
@@ -241,7 +241,7 @@ function CoachCard({ card, pageId, updateCardField, toast }: {
               {isOpen && (
                 <div className="px-3 pb-3 pt-2 border-t border-[var(--border)]">
                   <textarea
-                    className="w-full min-h-[120px] p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[15px] leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
+                    className="w-full min-h-[120px] p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[14px] leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
                     placeholder="在此输入或编辑记录内容..."
                     value={rec.content}
                     onChange={(e) => updateContent(rec.id, e.target.value)}
@@ -323,7 +323,7 @@ function FieldContent({ value, placeholder, onSave, renderKey }: {
           <button className="btn-cancel" onMouseDown={e => { e.preventDefault(); setDraft(value); setEditing(false) }}>
             取消
           </button>
-          <span className="text-[10px] text-muted self-center ml-auto">Esc 取消 · Ctrl+Enter 保存</span>
+          <span className="text-[11px] text-muted self-center ml-auto">Esc 取消 · Ctrl+Enter 保存</span>
         </div>
       </div>
     )
@@ -340,7 +340,7 @@ function FieldContent({ value, placeholder, onSave, renderKey }: {
         onClick={() => setEditing(true)}
       >
         {merged ? (
-          <div className="text-[13px] text-[var(--ink)] leading-relaxed">
+          <div className="text-[14px] text-[var(--ink)] leading-relaxed">
             {merged.split('\n\n').map((para, pi) => (
               <p key={pi} className="mb-2 last:mb-0">{para}</p>
             ))}
@@ -533,7 +533,7 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
         return (
           <>
             {card.fields.tip && (
-              <div className="text-[11px] text-[var(--muted)] leading-relaxed mb-2 p-2 bg-accent/5 rounded">
+              <div className="text-[12px] text-[var(--muted)] leading-relaxed mb-2 p-2 bg-accent/5 rounded">
                 {card.fields.tip}
               </div>
             )}
@@ -555,18 +555,18 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                     <div key={i} className="p-3 bg-white rounded-md border border-accent/30 space-y-2">
                       {ek.map((k) => (
                         <div key={k}>
-                          <span className="text-[11px] font-semibold text-muted block mb-0.5">{k === 'title' ? '场景名' : k === 'goal' ? '目标' : k === 'phrases' ? '关键句（每行一句）' : '练习笔记'}</span>
+                          <span className="text-[12px] font-semibold text-muted block mb-0.5">{k === 'title' ? '场景名' : k === 'goal' ? '目标' : k === 'phrases' ? '关键句（每行一句）' : '练习笔记'}</span>
                           <textarea
                             value={editData[k] || ''}
                             onChange={(e) => setEditData({ ...editData, [k]: e.target.value })}
-                            className="w-full text-[13px] px-2 py-1.5 border border-accent/30 rounded outline-none focus:border-accent bg-white resize-none"
+                            className="w-full text-[14px] px-2 py-1.5 border border-accent/30 rounded outline-none focus:border-accent bg-white resize-none"
                             rows={k === 'phrases' || k === 'notes' ? 4 : 2}
                           />
                         </div>
                       ))}
                       <div className="flex gap-2">
-                        <button onClick={() => saveEditEntry(i)} className="text-[11px] px-2.5 py-1 bg-accent text-white rounded hover:opacity-90">保存</button>
-                        <button onClick={() => setEditingEntry(null)} className="text-[11px] px-2.5 py-1 bg-gray-200 text-ink rounded hover:bg-gray-300">取消</button>
+                        <button onClick={() => saveEditEntry(i)} className="text-[12px] px-2.5 py-1 bg-accent text-white rounded hover:opacity-90">保存</button>
+                        <button onClick={() => setEditingEntry(null)} className="text-[12px] px-2.5 py-1 bg-gray-200 text-ink rounded hover:bg-gray-300">取消</button>
                       </div>
                     </div>
                   )
@@ -579,11 +579,11 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                       <SpeakButton text={entry.phrases || entry.goal || entry.title} className="text-[12px]" title="朗读整段" />
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover/sc:opacity-100 transition-all">
-                        <button onClick={() => startEditEntry(i, entry)} className="text-[10px] px-1.5 py-0.5 bg-accent text-white rounded hover:opacity-90" title="编辑">✎</button>
-                        <button onClick={() => { deleteCardEntry(pageId, card.id, i); toast('场景已删除') }} className="text-[11px] text-muted/30 hover:text-red-500 transition-colors" title="删除">删</button>
+                        <button onClick={() => startEditEntry(i, entry)} className="text-[11px] px-1.5 py-0.5 bg-accent text-white rounded hover:opacity-90" title="编辑">✎</button>
+                        <button onClick={() => { deleteCardEntry(pageId, card.id, i); toast('场景已删除') }} className="text-[12px] text-muted/30 hover:text-red-500 transition-colors" title="删除">删</button>
                       </div>
                     </div>
-                    {entry.goal && <div className="text-[11px] text-[var(--muted)] mt-0.5">🎯 {entry.goal}</div>}
+                    {entry.goal && <div className="text-[12px] text-[var(--muted)] mt-0.5">🎯 {entry.goal}</div>}
                     {entry.phrases && (
                       <div className="mt-1.5 space-y-1">
                         {entry.phrases.split('\n').filter(Boolean).map((p, pi) => (
@@ -596,14 +596,14 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                       </div>
                     )}
                     {entry.notes && (
-                      <div className="mt-2 p-2 bg-accent/5 rounded text-[11px] text-[var(--muted)] border-l-2 border-accent/30 pl-2.5 space-y-1">
+                      <div className="mt-2 p-2 bg-accent/5 rounded text-[12px] text-[var(--muted)] border-l-2 border-accent/30 pl-2.5 space-y-1">
                         {entry.notes.split('\n').filter(Boolean).map((line, li) => {
                           // 朗读时去掉行首的角色标记（emoji + 空格）
                           const speakText = line.replace(/^[^a-zA-Z0-9]+\s*/, '')
                           return (
                           <div key={li} className="flex items-start gap-1.5">
                             <span className="flex-1 whitespace-pre-wrap">{line}</span>
-                            {speakText ? <SpeakButton text={speakText} className="shrink-0 text-[11px] mt-0.5" title="朗读这句" /> : <span className="shrink-0 w-5" />}
+                            {speakText ? <SpeakButton text={speakText} className="shrink-0 text-[12px] mt-0.5" title="朗读这句" /> : <span className="shrink-0 w-5" />}
                           </div>
                           )
                         })}
@@ -614,7 +614,7 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                         <button
                           key={l.v}
                           onClick={() => updateCardEntry(pageId, card.id, i, { level: l.v })}
-                          className={`text-[11px] px-2 py-1 rounded border transition-all ${entry.level === l.v ? l.cls + ' font-semibold ring-1 ring-current' : 'border-[var(--border)] text-[var(--muted)] hover:border-accent'}`}
+                          className={`text-[12px] px-2 py-1 rounded border transition-all ${entry.level === l.v ? l.cls + ' font-semibold ring-1 ring-current' : 'border-[var(--border)] text-[var(--muted)] hover:border-accent'}`}
                         >
                           {l.label}
                         </button>
@@ -646,7 +646,7 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
         }
         return (
           <>
-            <div className="text-[11px] text-[var(--muted)] leading-relaxed mb-2 p-2 bg-accent/5 rounded">
+            <div className="text-[12px] text-[var(--muted)] leading-relaxed mb-2 p-2 bg-accent/5 rounded">
               Volka 场景词闭环：①看视频记词 → ②填场景名+词表 → ③点「复制提示词」去 AI 教练对话 → ④练完把易错点记到下方复盘。
             </div>
             <div className="field-row">
@@ -659,14 +659,14 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                 defaultValue={card.fields.words || ''}
                 onBlur={(e) => updateCardField(pageId, card.id, 'words', e.target.value)}
                 placeholder={'Blanket\nToilet\nPlunger\nShower Head\nTowel Rack\nSoap dispenser'}
-                className="w-full text-[13px] px-2 py-1.5 border border-[var(--border)] rounded outline-none focus:border-accent bg-white resize-none"
+                className="w-full text-[14px] px-2 py-1.5 border border-[var(--border)] rounded outline-none focus:border-accent bg-white resize-none"
                 rows={6}
               />
             </div>
             <button onClick={buildPrompt} className="mt-2 w-full text-[12px] py-2 rounded-md bg-accent text-white hover:opacity-90 transition-opacity">
               🚀 复制 AI 对话提示词
             </button>
-            <div className="mt-3 p-2 bg-amber-50 rounded text-[11px] text-[var(--muted)] leading-relaxed">
+            <div className="mt-3 p-2 bg-amber-50 rounded text-[12px] text-[var(--muted)] leading-relaxed">
               <div className="font-semibold mb-1 text-[var(--ink)]">⚠️ 复盘时自查（防中式英语石化）</div>
               <div>• 书面词别当口语：utilize→use · commence→start · purchase→buy</div>
               <div>• 中文直译：open the light→turn on · I very like→I really like</div>
@@ -683,12 +683,12 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                       defaultValue={e.content || ''}
                       onBlur={(ev) => updateCardEntry(pageId, card.id, i, { content: ev.target.value, date: e.date || new Date().toISOString().slice(0, 10) })}
                       placeholder="记下这局的易错点 + 标准说法..."
-                      className="w-full text-[12px] px-2 py-1.5 border border-accent/30 rounded outline-none focus:border-accent bg-white resize-none"
+                      className="w-full text-[14px] px-2 py-1.5 border border-accent/30 rounded outline-none focus:border-accent bg-white resize-none"
                       rows={3}
                     />
                     <div className="flex items-center justify-between mt-1">
-                      <span className="text-[10px] text-[var(--muted)]">{e.date || ''}</span>
-                      <button onClick={() => { deleteCardEntry(pageId, card.id, i); toast('复盘已删除') }} className="text-[10px] text-red-500 hover:underline">删除</button>
+                      <span className="text-[11px] text-[var(--muted)]">{e.date || ''}</span>
+                      <button onClick={() => { deleteCardEntry(pageId, card.id, i); toast('复盘已删除') }} className="text-[11px] text-red-500 hover:underline">删除</button>
                     </div>
                   </div>
                 ))}
@@ -729,9 +729,9 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
             <div className="space-y-2">
               {/* Quick input area — always visible */}
               <div className="border border-dashed border-[var(--border)] rounded-lg p-3 bg-[var(--bg)]">
-                <div className="text-[14px] font-semibold text-muted mb-1.5">📝 快速录入</div>
+                <div className="text-[13px] font-semibold text-muted mb-1.5">📝 快速录入</div>
                 <textarea
-                  className="w-full min-h-[100px] p-2.5 rounded-lg border border-[var(--border)] bg-white text-[15px] leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
+                  className="w-full min-h-[100px] p-2.5 rounded-lg border border-[var(--border)] bg-white text-[14px] leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
                   placeholder="粘贴或输入内容（自动清除碎行），点保存变为下方一条记录..."
                   value={quickInput}
                   onChange={e => setQuickInput(e.target.value)}
@@ -742,7 +742,7 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                   <button
                     onClick={handleQuickSave}
                     disabled={quickSaving || !quickInput.trim()}
-                    className="text-xs px-3 py-1.5 bg-accent text-white rounded-lg hover:opacity-90 disabled:opacity-40 transition-opacity font-medium"
+                    className="text-[12px] px-3 py-1.5 bg-accent text-white rounded-lg hover:opacity-90 disabled:opacity-40 transition-opacity font-medium"
                   >
                     {quickSaving ? '保存中...' : '💾 保存为记录'}
                   </button>
@@ -755,7 +755,7 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                   <span className="text-[13px] text-muted">📋 记录（{(card.entries || []).length}）</span>
                 </div>
                 {(card.entries || []).length === 0 && (
-                  <div className="text-xs text-muted/50 text-center py-4 border border-dashed border-[var(--border)] rounded-lg">
+                  <div className="text-[12px] text-muted/50 text-center py-4 border border-dashed border-[var(--border)] rounded-lg">
                     暂无记录，在上方输入内容后点击保存
                   </div>
                 )}
@@ -802,7 +802,7 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                         }}
                       >
                         <ChevronRight size={13} className={`text-muted transition-transform duration-150 ${isOpen ? 'rotate-90' : ''} shrink-0`} />
-                        <span className="flex-1 text-[16px] text-[var(--ink)] overflow-hidden whitespace-nowrap text-ellipsis leading-snug min-h-[24px]">
+                        <span className="flex-1 text-[14px] text-[var(--ink)] overflow-hidden whitespace-nowrap text-ellipsis leading-snug min-h-[24px]">
                           {preview || <span className="text-muted/40 italic">(空记录)</span>}
                         </span>
                         <span className="flex items-center gap-1 shrink-0 ml-1">
@@ -825,7 +825,7 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                                 onChange={e => setEditData({ ...editData, [doneKey]: e.target.checked ? 'true' : 'false' })}
                                 className="rounded"
                               />
-                              <span className="text-[11px] text-muted">完成</span>
+                              <span className="text-[12px] text-muted">完成</span>
                             </label>
                           )}
                           {keys.filter(k => k !== 'done').map(k => (
@@ -834,16 +834,16 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                               <textarea
                                 value={editData[k] || ''}
                                 onChange={e => setEditData({ ...editData, [k]: e.target.value })}
-                                className="w-full text-[15px] px-2 py-1.5 border border-accent/30 rounded outline-none focus:border-accent bg-white resize-none"
+                                className="w-full text-[14px] px-2 py-1.5 border border-accent/30 rounded outline-none focus:border-accent bg-white resize-none"
                                 rows={k === 'thought' || (quoteKey && k === quoteKey) ? 5 : 3}
                               />
                             </div>
                           ))}
                           <div className="flex gap-2 pt-1">
-                            <button onClick={() => saveEditEntry(i)} className="text-[13px] px-2.5 py-1 bg-accent text-white rounded hover:opacity-90">保存</button>
+                            <button onClick={() => saveEditEntry(i)} className="text-[12px] px-2.5 py-1 bg-accent text-white rounded hover:opacity-90">保存</button>
                             <button
                               onClick={() => { setOpenEntries(prev => { const n = new Set(prev); n.delete(i); return n }); setEditingEntry(null) }}
-                              className="text-[13px] px-2.5 py-1 bg-gray-200 text-ink rounded hover:bg-gray-300"
+                              className="text-[12px] px-2.5 py-1 bg-gray-200 text-ink rounded hover:bg-gray-300"
                             >收起</button>
                           </div>
                         </div>
