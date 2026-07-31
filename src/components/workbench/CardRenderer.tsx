@@ -768,17 +768,23 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                   onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') handleQuickSave() }}
                 />
                 <div className="flex items-center justify-between mt-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <input
-                      list="project-datalist"
                       value={selectedProject}
                       onChange={e => setSelectedProject(e.target.value)}
                       placeholder="输入或选择项目名"
-                      className="text-[12px] px-2 py-1 border border-[var(--border)] rounded-md bg-white text-[var(--ink)] outline-none focus:border-accent w-[180px]"
+                      className="text-[12px] px-2 py-1 border border-[var(--border)] rounded-md bg-white text-[var(--ink)] outline-none focus:border-accent w-[160px]"
                     />
-                    <datalist id="project-datalist">
-                      {allProjects.map(p => <option key={p} value={p} />)}
-                    </datalist>
+                    {/* Quick-select chips for existing projects */}
+                    {allProjects.filter(p => p !== selectedProject).map(p => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setSelectedProject(p)}
+                        className="text-[11px] px-2 py-0.5 rounded-full border border-accent/30 text-accent hover:bg-accent/10 transition-colors"
+                        title={`切换到「${p}」`}
+                      >{p.length > 10 ? p.slice(0, 9) + '…' : p}</button>
+                    ))}
                     <span className="text-[12px] text-muted/50">Ctrl+Enter 保存</span>
                   </div>
                   <button
