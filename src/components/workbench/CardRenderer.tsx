@@ -223,10 +223,10 @@ function CoachCard({ card, pageId, updateCardField, toast }: {
                   {rec.source === 'ai' ? '🤖' : '✍️'}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <div className="text-[13px] text-[var(--ink)] leading-snug truncate">
+                  <div className="text-[15px] text-[var(--ink)] leading-snug truncate">
                     {rec.content.trim() ? firstLine(rec.content) : <span className="text-muted/50 italic">（空记录，点击编辑）</span>}
                   </div>
-                  <div className="text-[10px] text-muted mt-0.5">{formatDate(rec.createdAt)}</div>
+                  <div className="text-[12px] text-muted mt-0.5">{formatDate(rec.createdAt)}</div>
                 </div>
                 <span className="flex items-center gap-1 shrink-0">
                   <span
@@ -809,7 +809,7 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                         }}
                       >
                         <ChevronRight size={13} className={`text-muted transition-transform duration-150 ${isOpen ? 'rotate-90' : ''} shrink-0`} />
-                        <span className="flex-1 text-[13px] text-[var(--ink)] overflow-hidden whitespace-nowrap text-ellipsis leading-tight min-h-[18px]">
+                        <span className="flex-1 text-[15px] text-[var(--ink)] overflow-hidden whitespace-nowrap text-ellipsis leading-snug min-h-[22px]">
                           {shortPreview || <span className="text-muted/40 italic">(空记录)</span>}
                         </span>
                         <span className="flex items-center gap-1 shrink-0 ml-1">
