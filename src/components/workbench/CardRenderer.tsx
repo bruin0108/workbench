@@ -755,14 +755,16 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                         <span className="flex-1 text-[13px] text-[var(--ink)] truncate leading-snug">
                           {shortPreview || <span className="text-muted/40 italic">(空记录)</span>}
                         </span>
-                        <span className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="flex items-center gap-1 shrink-0">
                           <button
                             onClick={(e) => { e.stopPropagation(); startEditEntry(i, entry) }}
-                            className="text-[10px] px-1.5 py-0.5 bg-accent text-white rounded hover:opacity-90"
+                            className="text-[10px] px-1.5 py-0.5 bg-accent text-white rounded hover:opacity-80"
+                            title="编辑"
                           >✎</button>
                           <button
                             onClick={(e) => { e.stopPropagation(); deleteCardEntry(pageId, card.id, i); toast('已删除') }}
                             className="text-[10px] px-1.5 py-0.5 bg-red-500 text-white rounded hover:bg-red-600"
+                            title="删除"
                           >✕</button>
                         </span>
                       </button>
@@ -812,16 +814,20 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                                   ))}
                                 </div>
                               )}
-                              {/* Main content (merged) */}
+                              {/* Main content — merged broken lines, NO autoFormatText (it re-splits!) */}
                               {quoteKey && entry[quoteKey] && (
-                                <div className="text-[13px] text-[var(--ink)] leading-relaxed">
-                                  <Markdown text={autoFormatText(mergeBrokenLines(entry[quoteKey]))} />
+                                <div className="text-[13px] text-[var(--ink)] leading-relaxed select-text">
+                                  {mergeBrokenLines(entry[quoteKey]).split('\n\n').map((para, pi) => (
+                                    <p key={pi} className="mb-2 last:mb-0">{para}</p>
+                                  ))}
                                 </div>
                               )}
                               {/* Thought (merged) */}
                               {thoughtKey && entry[thoughtKey] && (
-                                <div className="mt-1 p-2 bg-accent/5 rounded text-[11px] text-[var(--ink)] leading-relaxed border-l-2 border-accent/30">
-                                  <Markdown text={autoFormatText(mergeBrokenLines(entry[thoughtKey]))} />
+                                <div className="mt-1 p-2 bg-accent/5 rounded text-[11px] text-[var(--ink)] leading-relaxed border-l-2 border-accent/30 select-text">
+                                  {mergeBrokenLines(entry[thoughtKey]).split('\n\n').map((para, pi) => (
+                                    <p key={pi} className="mb-2 last:mb-0">{para}</p>
+                                  ))}
                                 </div>
                               )}
                             </div>
