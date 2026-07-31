@@ -767,30 +767,23 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                   const doneKey = keys.find(k => k === 'done')
                   const labelKeys = keys.filter(k => k !== 'quote' && k !== 'main' && k !== 'thought' && k !== 'done')
 
-                  // Preview: 只取第一个回车之前的内容作为标题预览
+                  // Preview: 取第一句话（以句号/感叹号/问号/回车为界），最多35字
                   const getPreviewText = () => {
                     if (quoteKey && entry[quoteKey]) {
-                      const merged = mergeBrokenLines(entry[quoteKey])
-                      // 以回车为界，只取第一段
-                      const firstLine = merged.split('\n')[0].trim()
-                      return firstLine
+                      const merged = mergeBrokenLines(entry[quoteKey]).trim()
+                      // 按句子截断：找第一个 。！？\n
+                      const sentenceEnd = merged.search(/[。！？\n]/)
+                      if (sentenceEnd > 0 && sentenceEnd <= 40) {
+                        return merged.slice(0, sentenceEnd + 1)
+                      }
+                      // 没找到句号或太长，硬截35字
+                      if (merged.length <= 35) return merged
+                      return merged.slice(0, 32) + '…'
                     }
                     if (labelKeys.length > 0) return labelKeys.filter(k => entry[k]).map(k => entry[k]).join(' · ')
                     return ''
                   }
                   const preview = getPreviewText()
-                  const shortPreview = (() => {
-                    if (preview.length <= 35) return preview
-                    // 超过35字就截断，尽量保留人名（第二个空格前）
-                    const firstSpace = preview.indexOf(' ')
-                    if (firstSpace > 0 && firstSpace < 20) {
-                      const secondSpace = preview.indexOf(' ', firstSpace + 1)
-                      if (secondSpace > 0 && secondSpace <= 38) {
-                        return preview.slice(0, secondSpace) + '…'
-                      }
-                    }
-                    return preview.slice(0, 32) + '…'
-                  })()
 
                   return (
                     <div key={i} className="border border-[var(--border)] rounded-lg overflow-hidden bg-[var(--bg-card)]">
@@ -810,7 +803,7 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                       >
                         <ChevronRight size={13} className={`text-muted transition-transform duration-150 ${isOpen ? 'rotate-90' : ''} shrink-0`} />
                         <span className="flex-1 text-[16px] text-[var(--ink)] overflow-hidden whitespace-nowrap text-ellipsis leading-snug min-h-[24px]">
-                          {shortPreview || <span className="text-muted/40 italic">(空记录)</span>}
+                          {preview || <span className="text-muted/40 italic">(空记录)</span>}
                         </span>
                         <span className="flex items-center gap-1 shrink-0 ml-1">
                           <button
@@ -837,20 +830,20 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                           )}
                           {keys.filter(k => k !== 'done').map(k => (
                             <div key={k}>
-                              <span className="text-[11px] font-semibold text-muted block mb-0.5">{formatFieldLabel(k)}</span>
+                              <span className="text-[13px] font-semibold text-muted block mb-0.5">{formatFieldLabel(k)}</span>
                               <textarea
                                 value={editData[k] || ''}
                                 onChange={e => setEditData({ ...editData, [k]: e.target.value })}
-                                className="w-full text-[13px] px-2 py-1.5 border border-accent/30 rounded outline-none focus:border-accent bg-white resize-none"
+                                className="w-full text-[15px] px-2 py-1.5 border border-accent/30 rounded outline-none focus:border-accent bg-white resize-none"
                                 rows={k === 'thought' || (quoteKey && k === quoteKey) ? 5 : 3}
                               />
                             </div>
                           ))}
                           <div className="flex gap-2 pt-1">
-                            <button onClick={() => saveEditEntry(i)} className="text-[11px] px-2.5 py-1 bg-accent text-white rounded hover:opacity-90">保存</button>
+                            <button onClick={() => saveEditEntry(i)} className="text-[13px] px-2.5 py-1 bg-accent text-white rounded hover:opacity-90">保存</button>
                             <button
                               onClick={() => { setOpenEntries(prev => { const n = new Set(prev); n.delete(i); return n }); setEditingEntry(null) }}
-                              className="text-[11px] px-2.5 py-1 bg-gray-200 text-ink rounded hover:bg-gray-300"
+                              className="text-[13px] px-2.5 py-1 bg-gray-200 text-ink rounded hover:bg-gray-300"
                             >收起</button>
                           </div>
                         </div>
