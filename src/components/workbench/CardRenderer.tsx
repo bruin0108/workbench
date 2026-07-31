@@ -394,12 +394,13 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
     updateCardField(pageId, card.id, key, text)
   }
 
-  const [collapsedEntries, setCollapsedEntries] = useState<Set<number>>(new Set())
+  // openEntries: set of entry indices that are expanded (default: all collapsed = empty set)
+  const [openEntries, setOpenEntries] = useState<Set<number>>(new Set())
   const [editingEntry, setEditingEntry] = useState<number | null>(null)
   const [editData, setEditData] = useState<Record<string, string>>({})
 
   const toggleCollapse = (i: number) => {
-    setCollapsedEntries(prev => {
+    setOpenEntries(prev => {
       const next = new Set(prev)
       if (next.has(i)) { next.delete(i) } else { next.add(i) }
       return next
@@ -714,199 +715,123 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
           <>
             {renderFields()}
             {card.listMode && (
-              <>
-                <div className="mt-2 pt-2 border-t border-dashed border-rule-bg">
-                  <button onClick={handleAddEntry} className="card-save-btn">💾 保存本条摘录</button>
+              <div className="mt-2 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-muted">📋 记录（{(card.entries || []).length}）</span>
+                  <button onClick={handleAddEntry} className="text-[11px] text-accent hover:opacity-80 font-medium">＋ 添加</button>
                 </div>
+                {(card.entries || []).length === 0 && (
+                  <div className="text-xs text-muted/50 text-center py-4 border border-dashed border-[var(--border)] rounded-lg">
+                    暂无记录
+                  </div>
+                )}
                 {(card.entries || []).map((entry, i) => {
                   const isEditing = editingEntry === i
-                  const isCollapsed = collapsedEntries.has(i)
+                  const isOpen = openEntries.has(i)
+                  // Get the main display text from this entry
                   const keys = Object.keys(entry)
-                  const doneKey = keys.find(k => k === 'done')
                   const quoteKey = keys.find(k => k === 'quote') || keys.find(k => k === 'main')
                   const thoughtKey = keys.find(k => k === 'thought')
-                  // labelKeys exclude special keys
+                  const doneKey = keys.find(k => k === 'done')
                   const labelKeys = keys.filter(k => k !== 'quote' && k !== 'main' && k !== 'thought' && k !== 'done')
-                  const hasThought = thoughtKey && entry[thoughtKey]
-                  const isDone = doneKey && entry[doneKey] === 'true'
+                  // Build a single display text string for preview
+                  const getDisplayText = () => {
+                    if (quoteKey && entry[quoteKey]) return mergeBrokenLines(entry[quoteKey])
+                    if (labelKeys.length > 0) return labelKeys.filter(k => entry[k]).map(k => entry[k]).join(' · ')
+                    return ''
+                  }
+                  const displayText = getDisplayText()
+                  const firstLine = displayText.split('\n')[0] || ''
+                  const shortPreview = firstLine.length > 50 ? firstLine.slice(0, 50) + '…' : firstLine
 
                   return (
-                  <div key={i} className="mt-2 p-3 bg-accent/3 rounded-md group/entry relative">
-                    {/* 操作按钮 */}
-                    <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover/entry:opacity-100 transition-all">
+                    <div key={i} className="border border-[var(--border)] rounded-lg overflow-hidden bg-[var(--bg-card)]">
+                      {/* Collapsible header — only first line */}
                       <button
-                        onClick={() => startEditEntry(i, entry)}
-                        className="text-[10px] px-1.5 py-0.5 bg-accent text-white rounded hover:opacity-90 flex items-center gap-0.5"
-                        title="编辑此条目"
+                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[var(--bg)] transition-colors text-left"
+                        onClick={() => toggleCollapse(i)}
                       >
-                        <Pencil size={10} />
+                        <ChevronRight size={13} className={`text-muted transition-transform ${isOpen ? 'rotate-90' : ''} shrink-0`} />
+                        <span className="flex-1 text-[13px] text-[var(--ink)] truncate leading-snug">
+                          {shortPreview || <span className="text-muted/40 italic">(空记录)</span>}
+                        </span>
+                        <span className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); startEditEntry(i, entry) }}
+                            className="text-[10px] px-1.5 py-0.5 bg-accent text-white rounded hover:opacity-90"
+                          >✎</button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); deleteCardEntry(pageId, card.id, i); toast('已删除') }}
+                            className="text-[10px] px-1.5 py-0.5 bg-red-500 text-white rounded hover:bg-red-600"
+                          >✕</button>
+                        </span>
                       </button>
-                      <button
-                        onClick={() => { deleteCardEntry(pageId, card.id, i); toast('条目已删除') }}
-                        className="text-[10px] px-1.5 py-0.5 bg-red-500 text-white rounded hover:bg-red-600 flex items-center gap-0.5"
-                        title="删除此条目"
-                      >
-                        <X size={10} />
-                      </button>
-                    </div>
 
-                    {isEditing ? (
-                      /* 编辑模式 */
-                      <div className="space-y-2">
-                        {keys.map(k => (
-                          <div key={k}>
-                            <span className="text-[11px] font-semibold text-muted block mb-0.5">{formatFieldLabel(k)}</span>
-                            <textarea
-                              value={editData[k] || ''}
-                              onChange={e => setEditData({ ...editData, [k]: e.target.value })}
-                              className="w-full text-[13px] px-2 py-1.5 border border-accent/30 rounded outline-none focus:border-accent bg-white resize-none"
-                              rows={k === 'thought' ? 4 : 2}
-                            />
-                          </div>
-                        ))}
-                        <div className="flex gap-2">
-                          <button onClick={() => saveEditEntry(i)} className="text-[11px] px-2.5 py-1 bg-accent text-white rounded hover:opacity-90">保存</button>
-                          <button onClick={() => setEditingEntry(null)} className="text-[11px] px-2.5 py-1 bg-gray-200 text-ink rounded hover:bg-gray-300">取消</button>
-                        </div>
-                      </div>
-                    ) : (
-                      /* 展示模式 — 按内容长度智能分流 */
-                      <>
-                        {/* 复选框 — done 字段 */}
-                        {doneKey && (
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <span
-                              onClick={() => updateCardEntry(pageId, card.id, i, { done: isDone ? 'false' : 'true' })}
-                              className={`flex-shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center text-[11px] transition-all cursor-pointer ${isDone ? 'bg-[var(--accent2)] border-[var(--accent2)] text-white scale-90' : 'border-[var(--border)] hover:border-[var(--accent2)]'}`}
-                            >
-                              {isDone ? '✓' : ''}
-                            </span>
-                            <span className={`text-[13px] font-medium ${isDone ? 'line-through text-[var(--muted)] opacity-60' : 'text-[var(--ink)]'}`}>
-                              {labelKeys.filter(k => entry[k] && entry[k].length > 0).map(k => (
-                                <span key={k}>{entry[k]}</span>
+                      {/* Expanded body */}
+                      {isOpen && (
+                        <div className="px-3 pb-3 border-t border-[var(--border)]">
+                          {isEditing ? (
+                            /* Edit mode */
+                            <div className="space-y-2 pt-2">
+                              {keys.map(k => (
+                                <div key={k}>
+                                  <span className="text-[11px] font-semibold text-muted block mb-0.5">{formatFieldLabel(k)}</span>
+                                  <textarea
+                                    value={editData[k] || ''}
+                                    onChange={e => setEditData({ ...editData, [k]: e.target.value })}
+                                    className="w-full text-[13px] px-2 py-1.5 border border-accent/30 rounded outline-none focus:border-accent bg-white resize-none"
+                                    rows={k === 'thought' || (quoteKey && k === quoteKey) ? 4 : 2}
+                                  />
+                                </div>
                               ))}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* 标签行 — 只展示短文本 labelKeys */}
-                        {!doneKey && labelKeys.filter(k => {
-                          const v = entry[k] || ''
-                          return v.length > 0 && v.length < 60 && !v.includes('\n')
-                        }).length > 0 && (
-                          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                            {labelKeys.filter(k => entry[k] && entry[k].length < 60 && !entry[k].includes('\n')).map(k => (
-                              <span key={k} className="text-[10px] px-1.5 py-0.5 bg-accent/10 text-accent rounded font-medium">{entry[k]}</span>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* quote/main 短文本 → 引用样式 */}
-                        {quoteKey && entry[quoteKey] && entry[quoteKey].length < 80 && !entry[quoteKey].includes('\n') && (
-                          <div className="text-[15px] leading-relaxed text-ink font-medium italic border-l-[3px] border-accent2/30 pl-3 py-0.5">
-                            {entry[quoteKey]}
-                          </div>
-                        )}
-
-                        {/* quote/main 长文本 → Markdown 渲染 */}
-                        {quoteKey && entry[quoteKey] && (entry[quoteKey].length >= 80 || entry[quoteKey].includes('\n')) && (
-                          <div>
-                            <div className="text-[11px] font-semibold text-muted mb-1 flex items-center gap-1.5">
-                              <span className="inline-block w-[3px] h-[10px] bg-accent rounded-sm" />
-                              {formatFieldLabel(quoteKey)}
-                            </div>
-                            <div className="pl-2">
-                              <Markdown text={autoFormatText(entry[quoteKey])} />
-                            </div>
-                          </div>
-                        )}
-
-                        {/* labelKeys 长文本 — 带标签的 Markdown 文本块 */}
-                        {labelKeys.filter(k => {
-                          const v = entry[k] || ''
-                          return v.length >= 60 || v.includes('\n')
-                        }).map(k => (
-                          <div key={k} className="mt-2">
-                            <div className="text-[11px] font-semibold text-muted mb-1 flex items-center gap-1.5">
-                              <span className="inline-block w-[3px] h-[10px] bg-accent rounded-sm" />
-                              {formatFieldLabel(k)}
-                            </div>
-                            <div className="pl-2">
-                              <Markdown text={autoFormatText(entry[k])} />
-                            </div>
-                          </div>
-                        ))}
-
-                        {/* 感悟 — 可折叠，支持 Markdown */}
-                        {hasThought && (entry[thoughtKey] || '').length > 0 && (
-                          <div className="mt-2">
-                            <button
-                              onClick={() => toggleCollapse(i)}
-                              className="flex items-center gap-1 text-[11px] text-muted hover:text-accent transition-colors"
-                            >
-                              {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
-                              我的想法
-                            </button>
-                            {!isCollapsed && (
-                              <div className="mt-1.5 pl-1">
-                                <Markdown text={autoFormatText(entry[thoughtKey])} />
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {/* 知识关联：找到其他页面中的相关内容 */}
-                        {(() => {
-                          const entryText = Object.values(entry).join(' ')
-                          if (entryText.length < 50) return null
-                          const keywords = entryText
-                            .replace(/[，。！？、；：""''（）【】\n]/g, ' ')
-                            .split(/\s+/)
-                            .filter(w => w.length >= 2 && !['的是', '一个', '这个', '可以', '我们', '自己', '就是', '不是', '什么', '他们', '没有', '已经', '还是', '因为', '所以', '如果', '但是', '不过', '而且'].includes(w))
-                            .slice(0, 8)
-                          if (keywords.length === 0) return null
-
-                          const related: Array<{ text: string; title: string; pageId: string }> = []
-                          Object.entries(pages).forEach(([pid, cards]) => {
-                            if (pid === pageId) return
-                            cards.forEach(c => {
-                              if (!c.entries) return
-                              c.entries.forEach(e => {
-                                const t = Object.entries(e).find(([k]) => k !== 'done')?.[1]
-                                if (!t || t.length < 20) return
-                                const matchCount = keywords.filter(kw => t.includes(kw)).length
-                                if (matchCount >= 2 && related.length < 3 && !related.some(r => r.text === t)) {
-                                  related.push({ text: t.substring(0, 60), title: c.title, pageId: pid })
-                                }
-                              })
-                            })
-                          })
-                          if (related.length === 0) return null
-                          return (
-                            <div className="mt-2 pt-2 border-t border-dashed border-[var(--border)]">
-                              <div className="text-[10px] font-semibold text-[var(--muted)] mb-1">💡 相关内容</div>
-                              <div className="space-y-1">
-                                {related.map((r, ri) => {
-                                  const pageTitle = PAGE_DEFS.find(p => p.id === r.pageId)?.title || r.pageId
-                                  return (
-                                    <div key={ri} className="text-[11px] text-[var(--muted)] leading-relaxed flex items-start gap-1.5">
-                                      <span className="text-[var(--accent)] shrink-0 mt-0.5">▸</span>
-                                      <span>
-                                        <span className="text-[var(--ink)]">{r.text}...</span>
-                                        <span className="text-[10px] ml-1">—「{r.title}」{pageTitle}</span>
-                                      </span>
-                                    </div>
-                                  )
-                                })}
+                              <div className="flex gap-2 pt-1">
+                                <button onClick={() => saveEditEntry(i)} className="text-[11px] px-2.5 py-1 bg-accent text-white rounded hover:opacity-90">保存</button>
+                                <button onClick={() => setEditingEntry(null)} className="text-[11px] px-2.5 py-1 bg-gray-200 text-ink rounded hover:bg-gray-300">取消</button>
                               </div>
                             </div>
-                          )
-                        })()}
-                      </>
-                    )}
-                  </div>
-                )})}
-              </>
+                          ) : (
+                            /* View mode — merged broken lines */
+                            <div className="pt-2 space-y-2">
+                              {/* Done checkbox */}
+                              {doneKey && (
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={entry[doneKey] === 'true'}
+                                    onChange={() => updateCardEntry(pageId, card.id, i, { done: entry[doneKey] === 'true' ? 'false' : 'true' })}
+                                    className="rounded"
+                                  />
+                                  <span className="text-[11px] text-muted">完成</span>
+                                </label>
+                              )}
+                              {/* Label tags */}
+                              {labelKeys.filter(k => entry[k]).length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                  {labelKeys.filter(k => entry[k]).map(k => (
+                                    <span key={k} className="text-[10px] px-1.5 py-0.5 bg-accent/10 text-accent rounded font-medium">{entry[k]}</span>
+                                  ))}
+                                </div>
+                              )}
+                              {/* Main content (merged) */}
+                              {quoteKey && entry[quoteKey] && (
+                                <div className="text-[13px] text-[var(--ink)] leading-relaxed">
+                                  <Markdown text={autoFormatText(mergeBrokenLines(entry[quoteKey]))} />
+                                </div>
+                              )}
+                              {/* Thought (merged) */}
+                              {thoughtKey && entry[thoughtKey] && (
+                                <div className="mt-1 p-2 bg-accent/5 rounded text-[11px] text-[var(--ink)] leading-relaxed border-l-2 border-accent/30">
+                                  <Markdown text={autoFormatText(mergeBrokenLines(entry[thoughtKey]))} />
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
             )}
           </>
         )
