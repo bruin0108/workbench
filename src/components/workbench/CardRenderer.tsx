@@ -767,7 +767,7 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                   const doneKey = keys.find(k => k === 'done')
                   const labelKeys = keys.filter(k => k !== 'quote' && k !== 'main' && k !== 'thought' && k !== 'done')
 
-                  // Preview: short — prefer breaking at space, max 20 chars
+                  // Preview: smart — show event + person name, max ~28 chars
                   const getPreviewText = () => {
                     if (quoteKey && entry[quoteKey]) {
                       const merged = mergeBrokenLines(entry[quoteKey])
@@ -778,11 +778,18 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                   }
                   const preview = getPreviewText()
                   const shortPreview = (() => {
-                    if (preview.length <= 20) return preview
-                    // Prefer to cut at a space before 20 chars (keeps date/person prefix intact)
-                    const cut = preview.lastIndexOf(' ', 20)
-                    const end = cut > 4 ? cut : 20
-                    return preview.slice(0, end) + '…'
+                    if (preview.length <= 28) return preview
+                    // Pattern: "活动名 人名 正文..." — try to include the name (word after first space)
+                    const firstSpace = preview.indexOf(' ')
+                    if (firstSpace > 0 && firstSpace < 18) {
+                      const secondSpace = preview.indexOf(' ', firstSpace + 1)
+                      if (secondSpace > 0 && secondSpace <= 30) {
+                        return preview.slice(0, secondSpace) + '…'
+                      }
+                      // No second space soon — include up to 28 chars (covers name)
+                      return preview.slice(0, 28) + '…'
+                    }
+                    return preview.slice(0, 25) + '…'
                   })()
 
                   return (
