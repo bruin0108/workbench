@@ -756,13 +756,16 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                 />
                 <div className="flex items-center justify-between mt-2">
                   <div className="flex items-center gap-2">
-                    <select
+                    <input
+                      list="project-datalist"
                       value={selectedProject}
                       onChange={e => setSelectedProject(e.target.value)}
-                      className="text-[12px] px-2 py-1 border border-[var(--border)] rounded-md bg-white text-[var(--ink)] outline-none focus:border-accent"
-                    >
-                      {allProjects.map(p => <option key={p} value={p}>{p}</option>)}
-                    </select>
+                      placeholder="输入或选择项目名"
+                      className="text-[12px] px-2 py-1 border border-[var(--border)] rounded-md bg-white text-[var(--ink)] outline-none focus:border-accent w-[180px]"
+                    />
+                    <datalist id="project-datalist">
+                      {allProjects.map(p => <option key={p} value={p} />)}
+                    </datalist>
                     <span className="text-[12px] text-muted/50">Ctrl+Enter 保存</span>
                   </div>
                   <button
@@ -798,13 +801,11 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
 
                   return groupNames.map((groupName, gi) => (
                     <div key={groupName}>
-                      {/* Group header — only show if more than 1 group */}
-                      {groupNames.length > 1 && (
-                        <div className="flex items-center gap-2 px-1 py-1.5 sticky top-0 bg-[var(--bg-card)] z-10">
-                          <span className="text-[13px] font-semibold text-accent">{groupName}</span>
-                          <span className="text-[11px] text-muted/50 bg-accent/5 px-1.5 rounded">{groups[groupName].length}</span>
-                        </div>
-                      )}
+                      {/* Group header — always show for clarity */}
+                      <div className="flex items-center gap-2 px-1 py-1.5 bg-accent/5 rounded-md mb-0.5">
+                        <span className="text-[13px] font-semibold text-accent">📂 {groupName}</span>
+                        <span className="text-[11px] text-muted/50">{groups[groupName].length} 条记录</span>
+                      </div>
                       {groups[groupName].map(({ entry, originalIndex: i }) => {
                         const isOpen = openEntries.has(i)
                         const keys = Object.keys(entry)
