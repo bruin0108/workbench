@@ -401,14 +401,6 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
   const [editingEntry, setEditingEntry] = useState<number | null>(null)
   const [editData, setEditData] = useState<Record<string, string>>({})
 
-  const toggleCollapse = (i: number) => {
-    setOpenEntries(prev => {
-      const next = new Set(prev)
-      if (next.has(i)) { next.delete(i) } else { next.add(i) }
-      return next
-    })
-  }
-
   const startEditEntry = (i: number, entry: Record<string, string>) => {
     setEditingEntry(i)
     setEditData({ ...entry })
@@ -768,7 +760,6 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                   </div>
                 )}
                 {(card.entries || []).map((entry, i) => {
-                  const isEditing = editingEntry === i
                   const isOpen = openEntries.has(i)
                   const keys = Object.keys(entry)
                   const quoteKey = keys.find(k => k === 'quote') || keys.find(k => k === 'main')
@@ -790,21 +781,25 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
 
                   return (
                     <div key={i} className="border border-[var(--border)] rounded-lg overflow-hidden bg-[var(--bg-card)]">
-                      {/* Header — strictly one line */}
+                      {/* Header — strictly one line, click to open (=edit) */}
                       <button
                         className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[var(--bg)] transition-colors text-left"
-                        onClick={() => toggleCollapse(i)}
+                        onClick={() => {
+                          if (isOpen) {
+                            setOpenEntries(prev => { const n = new Set(prev); n.delete(i); return n })
+                            if (editingEntry === i) setEditingEntry(null)
+                          } else {
+                            // Accordion: open only this one, enter edit mode directly
+                            setOpenEntries(new Set([i]))
+                            startEditEntry(i, entry)
+                          }
+                        }}
                       >
                         <ChevronRight size={13} className={`text-muted transition-transform duration-150 ${isOpen ? 'rotate-90' : ''} shrink-0`} />
                         <span className="flex-1 text-[13px] text-[var(--ink)] overflow-hidden whitespace-nowrap text-ellipsis leading-tight min-h-[18px]">
                           {shortPreview || <span className="text-muted/40 italic">(空记录)</span>}
                         </span>
                         <span className="flex items-center gap-1 shrink-0 ml-1">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); startEditEntry(i, entry) }}
-                            className="text-[10px] px-1.5 py-0.5 bg-accent text-white rounded hover:opacity-80"
-                            title="编辑"
-                          >✎</button>
                           <button
                             onClick={(e) => { e.stopPropagation(); deleteCardEntry(pageId, card.id, i); toast('已删除') }}
                             className="text-[10px] px-1.5 py-0.5 bg-red-500 text-white rounded hover:bg-red-600"
@@ -813,58 +808,38 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                         </span>
                       </button>
 
-                      {/* Expanded body */}
+                      {/* Expanded body — always editable (no separate view mode) */}
                       {isOpen && (
-                        <div className="px-3 pb-3 border-t border-[var(--border)]">
-                          {isEditing ? (
-                            <div className="space-y-2 pt-2">
-                              {keys.map(k => (
-                                <div key={k}>
-                                  <span className="text-[11px] font-semibold text-muted block mb-0.5">{formatFieldLabel(k)}</span>
-                                  <textarea
-                                    value={editData[k] || ''}
-                                    onChange={e => setEditData({ ...editData, [k]: e.target.value })}
-                                    className="w-full text-[13px] px-2 py-1.5 border border-accent/30 rounded outline-none focus:border-accent bg-white resize-none"
-                                    rows={k === 'thought' || (quoteKey && k === quoteKey) ? 4 : 2}
-                                  />
-                                </div>
-                              ))}
-                              <div className="flex gap-2 pt-1">
-                                <button onClick={() => saveEditEntry(i)} className="text-[11px] px-2.5 py-1 bg-accent text-white rounded hover:opacity-90">保存</button>
-                                <button onClick={() => setEditingEntry(null)} className="text-[11px] px-2.5 py-1 bg-gray-200 text-ink rounded hover:bg-gray-300">取消</button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="pt-2 space-y-2">
-                              {doneKey && (
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                  <input type="checkbox" checked={entry[doneKey] === 'true'} onChange={() => updateCardEntry(pageId, card.id, i, { done: entry[doneKey] === 'true' ? 'false' : 'true' })} className="rounded" />
-                                  <span className="text-[11px] text-muted">完成</span>
-                                </label>
-                              )}
-                              {labelKeys.filter(k => entry[k]).length > 0 && (
-                                <div className="flex flex-wrap gap-1">
-                                  {labelKeys.filter(k => entry[k]).map(k => (
-                                    <span key={k} className="text-[10px] px-1.5 py-0.5 bg-accent/10 text-accent rounded font-medium">{entry[k]}</span>
-                                  ))}
-                                </div>
-                              )}
-                              {quoteKey && entry[quoteKey] && (
-                                <div className="text-[13px] text-[var(--ink)] leading-relaxed select-text">
-                                  {mergeBrokenLines(entry[quoteKey]).split('\n\n').map((para, pi) => (
-                                    <p key={pi} className="mb-2 last:mb-0">{para}</p>
-                                  ))}
-                                </div>
-                              )}
-                              {thoughtKey && entry[thoughtKey] && (
-                                <div className="mt-1 p-2 bg-accent/5 rounded text-[11px] text-[var(--ink)] leading-relaxed border-l-2 border-accent/30 select-text">
-                                  {mergeBrokenLines(entry[thoughtKey]).split('\n\n').map((para, pi) => (
-                                    <p key={pi} className="mb-2 last:mb-0">{para}</p>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
+                        <div className="px-3 pb-3 border-t border-[var(--border)] space-y-2 pt-2">
+                          {doneKey && (
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={editData[doneKey] === 'true'}
+                                onChange={e => setEditData({ ...editData, [doneKey]: e.target.checked ? 'true' : 'false' })}
+                                className="rounded"
+                              />
+                              <span className="text-[11px] text-muted">完成</span>
+                            </label>
                           )}
+                          {keys.filter(k => k !== 'done').map(k => (
+                            <div key={k}>
+                              <span className="text-[11px] font-semibold text-muted block mb-0.5">{formatFieldLabel(k)}</span>
+                              <textarea
+                                value={editData[k] || ''}
+                                onChange={e => setEditData({ ...editData, [k]: e.target.value })}
+                                className="w-full text-[13px] px-2 py-1.5 border border-accent/30 rounded outline-none focus:border-accent bg-white resize-none"
+                                rows={k === 'thought' || (quoteKey && k === quoteKey) ? 5 : 3}
+                              />
+                            </div>
+                          ))}
+                          <div className="flex gap-2 pt-1">
+                            <button onClick={() => saveEditEntry(i)} className="text-[11px] px-2.5 py-1 bg-accent text-white rounded hover:opacity-90">保存</button>
+                            <button
+                              onClick={() => { setOpenEntries(prev => { const n = new Set(prev); n.delete(i); return n }); setEditingEntry(null) }}
+                              className="text-[11px] px-2.5 py-1 bg-gray-200 text-ink rounded hover:bg-gray-300"
+                            >收起</button>
+                          </div>
                         </div>
                       )}
                     </div>
