@@ -1,5 +1,5 @@
 import { GripVertical, ChevronDown, ChevronRight, Pencil, X, Check } from 'lucide-react'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { Card, formatFieldLabel, PAGE_DEFS } from '@/types/workbench'
 import { useWorkbenchStore } from '@/store/workbenchStore'
 import { useToast } from './Toast'
@@ -709,6 +709,23 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
         if (card.listMode) {
           const [quickInput, setQuickInput] = useState('')
           const [quickSaving, setQuickSaving] = useState(false)
+          const [selectedProject, setSelectedProject] = useState('')
+
+          // Build project list: unique values from existing entries + default
+          const allProjects = useMemo(() => {
+            const set_ = new Set<string>()
+            ;(card.entries || []).forEach(e => { if (e.project) set_.add(e.project) })
+            // If no projects yet, add a sensible default based on card title
+            if (set_.size === 0) set_.add(card.title || '未分类')
+            return Array.from(set_)
+          }, [card.entries, card.title])
+
+          // Initialize selectedProject once from available projects
+          useEffect(() => {
+            if (!selectedProject && allProjects.length > 0) {
+              setSelectedProject(allProjects[0])
+            }
+          }, [allProjects])
 
           const handleQuickSave = () => {
             const text = quickInput.trim()
@@ -719,7 +736,7 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
             // Detect first field name from existing entries
             const firstEntry = (card.entries || [])[0]
             const quoteKey = firstEntry ? (Object.keys(firstEntry).find(k => k === 'quote' || k === 'main') || 'content') : 'content'
-            appendCardEntries(pageId, card.id, [{ [quoteKey]: cleaned }])
+            appendCardEntries(pageId, card.id, [{ [quoteKey]: cleaned, project: selectedProject || (card.title || '未分类') }])
             setQuickInput('')
             setQuickSaving(false)
             toast('已保存为记录 ✅', 'success')
@@ -738,7 +755,16 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                   onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') handleQuickSave() }}
                 />
                 <div className="flex items-center justify-between mt-2">
-                  <span className="text-[12px] text-muted/50">Ctrl+Enter 快速保存</span>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={selectedProject}
+                      onChange={e => setSelectedProject(e.target.value)}
+                      className="text-[12px] px-2 py-1 border border-[var(--border)] rounded-md bg-white text-[var(--ink)] outline-none focus:border-accent"
+                    >
+                      {allProjects.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                    <span className="text-[12px] text-muted/50">Ctrl+Enter 保存</span>
+                  </div>
                   <button
                     onClick={handleQuickSave}
                     disabled={quickSaving || !quickInput.trim()}
@@ -749,7 +775,7 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                 </div>
               </div>
 
-              {/* Records list */}
+              {/* Records list — grouped by project */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[13px] text-muted">📋 记录（{(card.entries || []).length}）</span>
@@ -759,98 +785,118 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                     暂无记录，在上方输入内容后点击保存
                   </div>
                 )}
-                {(card.entries || []).map((entry, i) => {
-                  const isOpen = openEntries.has(i)
-                  const keys = Object.keys(entry)
-                  const quoteKey = keys.find(k => k === 'quote') || keys.find(k => k === 'main')
-                  const thoughtKey = keys.find(k => k === 'thought')
-                  const doneKey = keys.find(k => k === 'done')
-                  const labelKeys = keys.filter(k => k !== 'quote' && k !== 'main' && k !== 'thought' && k !== 'done')
+                {(() => {
+                  // Group entries by project
+                  const entries = card.entries || []
+                  const groups: Record<string, typeof entries> = {}
+                  entries.forEach((entry, idx) => {
+                    const proj = entry.project || '未分类'
+                    if (!groups[proj]) groups[proj] = []
+                    groups[proj].push({ entry, originalIndex: idx })
+                  })
+                  const groupNames = Object.keys(groups)
 
-                  // Preview: 取第一句话（以句号/感叹号/问号/回车为界），最多35字
-                  const getPreviewText = () => {
-                    if (quoteKey && entry[quoteKey]) {
-                      const merged = mergeBrokenLines(entry[quoteKey]).trim()
-                      // 按句子截断：找第一个 。！？\n
-                      const sentenceEnd = merged.search(/[。！？\n]/)
-                      if (sentenceEnd > 0 && sentenceEnd <= 40) {
-                        return merged.slice(0, sentenceEnd + 1)
-                      }
-                      // 没找到句号或太长，硬截35字
-                      if (merged.length <= 35) return merged
-                      return merged.slice(0, 32) + '…'
-                    }
-                    if (labelKeys.length > 0) return labelKeys.filter(k => entry[k]).map(k => entry[k]).join(' · ')
-                    return ''
-                  }
-                  const preview = getPreviewText()
-
-                  return (
-                    <div key={i} className="border border-[var(--border)] rounded-lg overflow-hidden bg-[var(--bg-card)]">
-                      {/* Header — strictly one line, click to open (=edit) */}
-                      <button
-                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[var(--bg)] transition-colors text-left"
-                        onClick={() => {
-                          if (isOpen) {
-                            setOpenEntries(prev => { const n = new Set(prev); n.delete(i); return n })
-                            if (editingEntry === i) setEditingEntry(null)
-                          } else {
-                            // Accordion: open only this one, enter edit mode directly
-                            setOpenEntries(new Set([i]))
-                            startEditEntry(i, entry)
-                          }
-                        }}
-                      >
-                        <ChevronRight size={13} className={`text-muted transition-transform duration-150 ${isOpen ? 'rotate-90' : ''} shrink-0`} />
-                        <span className="flex-1 text-[14px] text-[var(--ink)] overflow-hidden whitespace-nowrap text-ellipsis leading-snug min-h-[24px]">
-                          {preview || <span className="text-muted/40 italic">(空记录)</span>}
-                        </span>
-                        <span className="flex items-center gap-1 shrink-0 ml-1">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); deleteCardEntry(pageId, card.id, i); toast('已删除') }}
-                            className="text-[11px] text-muted/30 hover:text-red-500 transition-colors"
-                            title="删除"
-                          >删</button>
-                        </span>
-                      </button>
-
-                      {/* Expanded body — always editable (no separate view mode) */}
-                      {isOpen && (
-                        <div className="px-3 pb-3 border-t border-[var(--border)] space-y-2 pt-2">
-                          {doneKey && (
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={editData[doneKey] === 'true'}
-                                onChange={e => setEditData({ ...editData, [doneKey]: e.target.checked ? 'true' : 'false' })}
-                                className="rounded"
-                              />
-                              <span className="text-[12px] text-muted">完成</span>
-                            </label>
-                          )}
-                          {keys.filter(k => k !== 'done').map(k => (
-                            <div key={k}>
-                              <span className="text-[13px] font-semibold text-muted block mb-0.5">{formatFieldLabel(k)}</span>
-                              <textarea
-                                value={editData[k] || ''}
-                                onChange={e => setEditData({ ...editData, [k]: e.target.value })}
-                                className="w-full text-[14px] px-2 py-1.5 border border-accent/30 rounded outline-none focus:border-accent bg-white resize-none"
-                                rows={k === 'thought' || (quoteKey && k === quoteKey) ? 5 : 3}
-                              />
-                            </div>
-                          ))}
-                          <div className="flex gap-2 pt-1">
-                            <button onClick={() => saveEditEntry(i)} className="text-[12px] px-2.5 py-1 bg-accent text-white rounded hover:opacity-90">保存</button>
-                            <button
-                              onClick={() => { setOpenEntries(prev => { const n = new Set(prev); n.delete(i); return n }); setEditingEntry(null) }}
-                              className="text-[12px] px-2.5 py-1 bg-gray-200 text-ink rounded hover:bg-gray-300"
-                            >收起</button>
-                          </div>
+                  return groupNames.map((groupName, gi) => (
+                    <div key={groupName}>
+                      {/* Group header — only show if more than 1 group */}
+                      {groupNames.length > 1 && (
+                        <div className="flex items-center gap-2 px-1 py-1.5 sticky top-0 bg-[var(--bg-card)] z-10">
+                          <span className="text-[13px] font-semibold text-accent">{groupName}</span>
+                          <span className="text-[11px] text-muted/50 bg-accent/5 px-1.5 rounded">{groups[groupName].length}</span>
                         </div>
                       )}
+                      {groups[groupName].map(({ entry, originalIndex: i }) => {
+                        const isOpen = openEntries.has(i)
+                        const keys = Object.keys(entry)
+                        const quoteKey = keys.find(k => k === 'quote') || keys.find(k => k === 'main')
+                        const thoughtKey = keys.find(k => k === 'thought')
+                        const doneKey = keys.find(k => k === 'done')
+                        const labelKeys = keys.filter(k => k !== 'quote' && k !== 'main' && k !== 'thought' && k !== 'done' && k !== 'project')
+
+                        // Preview: 取第一句话（以句号/感叹号/问号为界），最多35字
+                        const getPreviewText = () => {
+                          if (quoteKey && entry[quoteKey]) {
+                            const merged = mergeBrokenLines(entry[quoteKey]).trim()
+                            const sentenceEnd = merged.search(/[。！？\n]/)
+                            if (sentenceEnd > 0 && sentenceEnd <= 40) {
+                              return merged.slice(0, sentenceEnd + 1)
+                            }
+                            if (merged.length <= 35) return merged
+                            return merged.slice(0, 32) + '…'
+                          }
+                          if (labelKeys.length > 0) return labelKeys.filter(k => entry[k]).map(k => entry[k]).join(' · ')
+                          return ''
+                        }
+                        const preview = getPreviewText()
+
+                        return (
+                          <div key={i} className="border border-[var(--border)] rounded-lg overflow-hidden bg-[var(--bg-card)]">
+                            {/* Header — strictly one line, click to open (=edit) */}
+                            <button
+                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[var(--bg)] transition-colors text-left"
+                              onClick={() => {
+                                if (isOpen) {
+                                  setOpenEntries(prev => { const n = new Set(prev); n.delete(i); return n })
+                                  if (editingEntry === i) setEditingEntry(null)
+                                } else {
+                                  setOpenEntries(new Set([i]))
+                                  startEditEntry(i, entry)
+                                }
+                              }}
+                            >
+                              <ChevronRight size={13} className={`text-muted transition-transform duration-150 ${isOpen ? 'rotate-90' : ''} shrink-0`} />
+                              <span className="flex-1 text-[14px] text-[var(--ink)] overflow-hidden whitespace-nowrap text-ellipsis leading-snug min-h-[24px]">
+                                {preview || <span className="text-muted/40 italic">(空记录)</span>}
+                              </span>
+                              <span className="flex items-center gap-1 shrink-0 ml-1">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); deleteCardEntry(pageId, card.id, i); toast('已删除') }}
+                                  className="text-[11px] text-muted/30 hover:text-red-500 transition-colors"
+                                  title="删除"
+                                >删</button>
+                              </span>
+                            </button>
+
+                            {/* Expanded body — always editable (no separate view mode) */}
+                            {isOpen && (
+                              <div className="px-3 pb-3 border-t border-[var(--border)] space-y-2 pt-2">
+                                {doneKey && (
+                                  <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={editData[doneKey] === 'true'}
+                                      onChange={e => setEditData({ ...editData, [doneKey]: e.target.checked ? 'true' : 'false' })}
+                                      className="rounded"
+                                    />
+                                    <span className="text-[12px] text-muted">完成</span>
+                                  </label>
+                                )}
+                                {keys.filter(k => k !== 'done' && k !== 'project').map(k => (
+                                  <div key={k}>
+                                    <span className="text-[13px] font-semibold text-muted block mb-0.5">{formatFieldLabel(k)}</span>
+                                    <textarea
+                                      value={editData[k] || ''}
+                                      onChange={e => setEditData({ ...editData, [k]: e.target.value })}
+                                      className="w-full text-[14px] px-2 py-1.5 border border-accent/30 rounded outline-none focus:border-accent bg-white resize-none"
+                                      rows={k === 'thought' || (quoteKey && k === quoteKey) ? 5 : 3}
+                                    />
+                                  </div>
+                                ))}
+                                <div className="flex gap-2 pt-1">
+                                  <button onClick={() => saveEditEntry(i)} className="text-[12px] px-2.5 py-1 bg-accent text-white rounded hover:opacity-90">保存</button>
+                                  <button
+                                    onClick={() => { setOpenEntries(prev => { const n = new Set(prev); n.delete(i); return n }); setEditingEntry(null) }}
+                                    className="text-[12px] px-2.5 py-1 bg-gray-200 text-ink rounded hover:bg-gray-300"
+                                  >收起</button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
-                  )
-                })}
+                  ))
+                })()}
               </div>
             </div>
           )
