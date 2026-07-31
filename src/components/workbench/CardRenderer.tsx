@@ -767,17 +767,19 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                   const doneKey = keys.find(k => k === 'done')
                   const labelKeys = keys.filter(k => k !== 'quote' && k !== 'main' && k !== 'thought' && k !== 'done')
 
-                  // Preview: strictly ONE line, max 55 chars
+                  // Preview: strictly first sentence only, max 35 chars
                   const getPreviewText = () => {
                     if (quoteKey && entry[quoteKey]) {
                       const merged = mergeBrokenLines(entry[quoteKey])
-                      return merged.split('\n')[0].split('\n\n')[0]
+                      // Split by Chinese/English sentence endings, take first sentence only
+                      const firstSentence = merged.split(/(?<=[。！？!?])/)[0]
+                      return firstSentence.trim()
                     }
                     if (labelKeys.length > 0) return labelKeys.filter(k => entry[k]).map(k => entry[k]).join(' · ')
                     return ''
                   }
                   const preview = getPreviewText()
-                  const shortPreview = preview.length > 55 ? preview.slice(0, 55) + '…' : preview
+                  const shortPreview = preview.length > 35 ? preview.slice(0, 35) + '…' : preview
 
                   return (
                     <div key={i} className="border border-[var(--border)] rounded-lg overflow-hidden bg-[var(--bg-card)]">
