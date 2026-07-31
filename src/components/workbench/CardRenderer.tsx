@@ -767,29 +767,29 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                   const doneKey = keys.find(k => k === 'done')
                   const labelKeys = keys.filter(k => k !== 'quote' && k !== 'main' && k !== 'thought' && k !== 'done')
 
-                  // Preview: smart — show event + person name, max ~28 chars
+                  // Preview: 只取第一个回车之前的内容作为标题预览
                   const getPreviewText = () => {
                     if (quoteKey && entry[quoteKey]) {
                       const merged = mergeBrokenLines(entry[quoteKey])
-                      return merged.trim()
+                      // 以回车为界，只取第一段
+                      const firstLine = merged.split('\n')[0].trim()
+                      return firstLine
                     }
                     if (labelKeys.length > 0) return labelKeys.filter(k => entry[k]).map(k => entry[k]).join(' · ')
                     return ''
                   }
                   const preview = getPreviewText()
                   const shortPreview = (() => {
-                    if (preview.length <= 28) return preview
-                    // Pattern: "活动名 人名 正文..." — try to include the name (word after first space)
+                    if (preview.length <= 35) return preview
+                    // 超过35字就截断，尽量保留人名（第二个空格前）
                     const firstSpace = preview.indexOf(' ')
-                    if (firstSpace > 0 && firstSpace < 18) {
+                    if (firstSpace > 0 && firstSpace < 20) {
                       const secondSpace = preview.indexOf(' ', firstSpace + 1)
-                      if (secondSpace > 0 && secondSpace <= 30) {
+                      if (secondSpace > 0 && secondSpace <= 38) {
                         return preview.slice(0, secondSpace) + '…'
                       }
-                      // No second space soon — include up to 28 chars (covers name)
-                      return preview.slice(0, 28) + '…'
                     }
-                    return preview.slice(0, 25) + '…'
+                    return preview.slice(0, 32) + '…'
                   })()
 
                   return (
@@ -809,7 +809,7 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                         }}
                       >
                         <ChevronRight size={13} className={`text-muted transition-transform duration-150 ${isOpen ? 'rotate-90' : ''} shrink-0`} />
-                        <span className="flex-1 text-[15px] text-[var(--ink)] overflow-hidden whitespace-nowrap text-ellipsis leading-snug min-h-[22px]">
+                        <span className="flex-1 text-[16px] text-[var(--ink)] overflow-hidden whitespace-nowrap text-ellipsis leading-snug min-h-[24px]">
                           {shortPreview || <span className="text-muted/40 italic">(空记录)</span>}
                         </span>
                         <span className="flex items-center gap-1 shrink-0 ml-1">
