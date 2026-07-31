@@ -169,7 +169,7 @@ function CoachCard({ card, pageId, updateCardField, toast }: {
         <div>
           <div className="text-[13px] font-semibold text-muted mb-1.5">📝 讲话内容</div>
           <textarea
-            className="w-full min-h-[110px] p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
+            className="w-full min-h-[110px] p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[15px] leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
             placeholder="粘贴或输入讲话内容（自动清除碎行）..."
             value={inputPrompt}
             onChange={(e) => setInputPrompt(e.target.value)}
@@ -179,7 +179,7 @@ function CoachCard({ card, pageId, updateCardField, toast }: {
         <div>
           <div className="text-[13px] font-semibold text-muted mb-1.5">📎 参考范例（可选）</div>
           <textarea
-            className="w-full min-h-[60px] p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
+            className="w-full min-h-[60px] p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[15px] leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
             placeholder="粘贴满意的历史结果，AI 会模仿风格..."
             value={inputStandard}
             onChange={(e) => setInputStandard(e.target.value)}
@@ -241,7 +241,7 @@ function CoachCard({ card, pageId, updateCardField, toast }: {
               {isOpen && (
                 <div className="px-3 pb-3 pt-2 border-t border-[var(--border)]">
                   <textarea
-                    className="w-full min-h-[120px] p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
+                    className="w-full min-h-[120px] p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[15px] leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
                     placeholder="在此输入或编辑记录内容..."
                     value={rec.content}
                     onChange={(e) => updateContent(rec.id, e.target.value)}
@@ -731,7 +731,7 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
               <div className="border border-dashed border-[var(--border)] rounded-lg p-3 bg-[var(--bg)]">
                 <div className="text-[14px] font-semibold text-muted mb-1.5">📝 快速录入</div>
                 <textarea
-                  className="w-full min-h-[100px] p-2.5 rounded-lg border border-[var(--border)] bg-white text-sm leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
+                  className="w-full min-h-[100px] p-2.5 rounded-lg border border-[var(--border)] bg-white text-[15px] leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
                   placeholder="粘贴或输入内容（自动清除碎行），点保存变为下方一条记录..."
                   value={quickInput}
                   onChange={e => setQuickInput(e.target.value)}

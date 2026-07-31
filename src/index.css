@@ -285,7 +285,7 @@ body {
 }
 
 .field-value {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--ink);
   min-height: 1.4em;
   outline: none;
@@ -333,7 +333,7 @@ body {
 }
 
 .field-value-rich .prose-wb {
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.75;
 }
 
@@ -364,7 +364,7 @@ body {
 
 .field-edit-area {
   width: 100%;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.7;
   padding: 8px 12px;
   border: 2px solid var(--accent);
