@@ -711,6 +711,7 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
           const [quickSaving, setQuickSaving] = useState(false)
           const [selectedProject, setSelectedProject] = useState('')
           const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
+          const [groupsInitialized, setGroupsInitialized] = useState(false)
 
           // Build project list: unique values from existing entries + default
           const allProjects = useMemo(() => {
@@ -727,6 +728,17 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
               setSelectedProject(allProjects[0])
             }
           }, [allProjects])
+
+          // Default: collapse all groups on first render
+          useEffect(() => {
+            if (!groupsInitialized && (card.entries || []).length > 0) {
+              const names = new Set<string>()
+              ;(card.entries || []).forEach(e => { if (e.project) names.add(e.project) })
+              if (names.size === 0) names.add(card.title || '未分类')
+              setCollapsedGroups(new Set(names))
+              setGroupsInitialized(true)
+            }
+          }, [groupsInitialized, card.entries, card.title])
 
           const handleQuickSave = () => {
             const text = quickInput.trim()
