@@ -710,6 +710,7 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
           const [quickInput, setQuickInput] = useState('')
           const [quickSaving, setQuickSaving] = useState(false)
           const [selectedProject, setSelectedProject] = useState('')
+          const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
 
           // Build project list: unique values from existing entries + default
           const allProjects = useMemo(() => {
@@ -799,14 +800,56 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                   })
                   const groupNames = Object.keys(groups)
 
-                  return groupNames.map((groupName, gi) => (
+                  return groupNames.map((groupName, gi) => {
+                    const isCollapsed = collapsedGroups.has(groupName)
+                    const toggleGroup = () => {
+                      setCollapsedGroups(prev => {
+                        const next = new Set(prev)
+                        if (next.has(groupName)) next.delete(groupName)
+                        else next.add(groupName)
+                        return next
+                      })
+                    }
+                    // Show first N items when collapsed
+                    const collapsedPreviewCount = 2
+
+                    return (
                     <div key={groupName}>
-                      {/* Group header — always show for clarity */}
-                      <div className="flex items-center gap-2 px-1 py-1.5 bg-accent/5 rounded-md mb-0.5">
+                      {/* Group header — clickable to collapse/expand */}
+                      <button
+                        onClick={toggleGroup}
+                        className="flex items-center gap-2 px-1 py-1.5 bg-accent/5 rounded-md mb-0.5 w-full text-left hover:bg-accent/10 transition-colors cursor-pointer"
+                      >
+                        <ChevronRight size={14} className={`text-accent transition-transform duration-150 ${isCollapsed ? '' : 'rotate-90'}`} />
                         <span className="text-[13px] font-semibold text-accent">📂 {groupName}</span>
                         <span className="text-[11px] text-muted/50">{groups[groupName].length} 条记录</span>
-                      </div>
-                      {groups[groupName].map(({ entry, originalIndex: i }) => {
+                        {!isCollapsed && groups[groupName].length > 3 && (
+                          <span className="text-[11px] text-muted/30 ml-auto">点击收起</span>
+                        )}
+                      </button>
+
+                      {/* Records — hidden when collapsed, or show preview */}
+                      {isCollapsed ? (
+                        /* Collapsed preview */
+                        <div className="px-1 pb-1 space-y-0.5">
+                          {groups[groupName].slice(0, 2).map(({ entry, originalIndex: i }) => {
+                            const keys = Object.keys(entry)
+                            const qk = keys.find(k => k === 'quote' || k === 'main')
+                            const txt = qk && entry[qk] ? mergeBrokenLines(entry[qk]).trim() : ''
+                            const short = txt.length > 45 ? txt.slice(0, 42) + '…' : txt
+                            return (
+                              <div key={i} className="text-[12px] text-muted/60 truncate pl-6">
+                                {short || '(空记录)'}
+                              </div>
+                            )
+                          })}
+                          {groups[groupName].length > 2 && (
+                            <div className="text-[11px] text-accent/60 pl-6">
+                              …还有 {groups[groupName].length - 2} 条，点击展开
+                            </div>
+                          )}
+                        </div>
+                      ) : groups[groupName].map(({ entry, originalIndex: i }) => {
                         const isOpen = openEntries.has(i)
                         const keys = Object.keys(entry)
                         const quoteKey = keys.find(k => k === 'quote') || keys.find(k => k === 'main')
@@ -894,9 +937,11 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                             )}
                           </div>
                         )
-                      })}
+                      }
+                      )}
                     </div>
-                  ))
+                    )
+                  })
                 })()}
               </div>
             </div>
