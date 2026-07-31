@@ -713,51 +713,93 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
       }
 
       default:
-        return (
-          <>
-            {renderFields()}
-            {card.listMode && (
-              <div className="mt-2 space-y-1.5">
+        // --- listMode cards: quick-input area + collapsible records ---
+        if (card.listMode) {
+          const [quickInput, setQuickInput] = useState('')
+          const [quickSaving, setQuickSaving] = useState(false)
+
+          const handleQuickSave = () => {
+            const text = quickInput.trim()
+            if (!text) { toast('请先输入内容', 'info'); return }
+            // Clean broken lines on paste
+            const cleaned = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/(?<!\n)\n(?!\\n)/g, ' ').trim()
+            setQuickSaving(true)
+            // Detect first field name from existing entries
+            const firstEntry = (card.entries || [])[0]
+            const quoteKey = firstEntry ? (Object.keys(firstEntry).find(k => k === 'quote' || k === 'main') || 'content') : 'content'
+            appendCardEntries(pageId, card.id, [{ [quoteKey]: cleaned }])
+            setQuickInput('')
+            setQuickSaving(false)
+            toast('已保存为记录 ✅', 'success')
+          }
+
+          return (
+            <div className="space-y-2">
+              {/* Quick input area — always visible */}
+              <div className="border border-dashed border-[var(--border)] rounded-lg p-3 bg-[var(--bg)]">
+                <div className="text-[11px] font-semibold text-muted mb-1.5">📝 快速录入</div>
+                <textarea
+                  className="w-full min-h-[100px] p-2.5 rounded-lg border border-[var(--border)] bg-white text-sm leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
+                  placeholder="粘贴或输入内容（自动清除碎行），点保存变为下方一条记录..."
+                  value={quickInput}
+                  onChange={e => setQuickInput(e.target.value)}
+                  onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') handleQuickSave() }}
+                />
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-[10px] text-muted/50">Ctrl+Enter 快速保存</span>
+                  <button
+                    onClick={handleQuickSave}
+                    disabled={quickSaving || !quickInput.trim()}
+                    className="text-xs px-3 py-1.5 bg-accent text-white rounded-lg hover:opacity-90 disabled:opacity-40 transition-opacity font-medium"
+                  >
+                    {quickSaving ? '保存中...' : '💾 保存为记录'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Records list */}
+              <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] text-muted">📋 记录（{(card.entries || []).length}）</span>
-                  <button onClick={handleAddEntry} className="text-[11px] text-accent hover:opacity-80 font-medium">＋ 添加</button>
                 </div>
                 {(card.entries || []).length === 0 && (
                   <div className="text-xs text-muted/50 text-center py-4 border border-dashed border-[var(--border)] rounded-lg">
-                    暂无记录
+                    暂无记录，在上方输入内容后点击保存
                   </div>
                 )}
                 {(card.entries || []).map((entry, i) => {
                   const isEditing = editingEntry === i
                   const isOpen = openEntries.has(i)
-                  // Get the main display text from this entry
                   const keys = Object.keys(entry)
                   const quoteKey = keys.find(k => k === 'quote') || keys.find(k => k === 'main')
                   const thoughtKey = keys.find(k => k === 'thought')
                   const doneKey = keys.find(k => k === 'done')
                   const labelKeys = keys.filter(k => k !== 'quote' && k !== 'main' && k !== 'thought' && k !== 'done')
-                  // Build a single display text string for preview
-                  const getDisplayText = () => {
-                    if (quoteKey && entry[quoteKey]) return mergeBrokenLines(entry[quoteKey])
+
+                  // Preview: strictly ONE line, max 55 chars
+                  const getPreviewText = () => {
+                    if (quoteKey && entry[quoteKey]) {
+                      const merged = mergeBrokenLines(entry[quoteKey])
+                      return merged.split('\n')[0].split('\n\n')[0]
+                    }
                     if (labelKeys.length > 0) return labelKeys.filter(k => entry[k]).map(k => entry[k]).join(' · ')
                     return ''
                   }
-                  const displayText = getDisplayText()
-                  const firstLine = displayText.split('\n')[0] || ''
-                  const shortPreview = firstLine.length > 50 ? firstLine.slice(0, 50) + '…' : firstLine
+                  const preview = getPreviewText()
+                  const shortPreview = preview.length > 55 ? preview.slice(0, 55) + '…' : preview
 
                   return (
                     <div key={i} className="border border-[var(--border)] rounded-lg overflow-hidden bg-[var(--bg-card)]">
-                      {/* Collapsible header — only first line */}
+                      {/* Header — strictly one line */}
                       <button
                         className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[var(--bg)] transition-colors text-left"
                         onClick={() => toggleCollapse(i)}
                       >
-                        <ChevronRight size={13} className={`text-muted transition-transform ${isOpen ? 'rotate-90' : ''} shrink-0`} />
-                        <span className="flex-1 text-[13px] text-[var(--ink)] truncate leading-snug">
+                        <ChevronRight size={13} className={`text-muted transition-transform duration-150 ${isOpen ? 'rotate-90' : ''} shrink-0`} />
+                        <span className="flex-1 text-[13px] text-[var(--ink)] overflow-hidden whitespace-nowrap text-ellipsis leading-tight min-h-[18px]">
                           {shortPreview || <span className="text-muted/40 italic">(空记录)</span>}
                         </span>
-                        <span className="flex items-center gap-1 shrink-0">
+                        <span className="flex items-center gap-1 shrink-0 ml-1">
                           <button
                             onClick={(e) => { e.stopPropagation(); startEditEntry(i, entry) }}
                             className="text-[10px] px-1.5 py-0.5 bg-accent text-white rounded hover:opacity-80"
@@ -775,7 +817,6 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                       {isOpen && (
                         <div className="px-3 pb-3 border-t border-[var(--border)]">
                           {isEditing ? (
-                            /* Edit mode */
                             <div className="space-y-2 pt-2">
                               {keys.map(k => (
                                 <div key={k}>
@@ -794,21 +835,13 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                               </div>
                             </div>
                           ) : (
-                            /* View mode — merged broken lines */
                             <div className="pt-2 space-y-2">
-                              {/* Done checkbox */}
                               {doneKey && (
                                 <label className="flex items-center gap-2 cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    checked={entry[doneKey] === 'true'}
-                                    onChange={() => updateCardEntry(pageId, card.id, i, { done: entry[doneKey] === 'true' ? 'false' : 'true' })}
-                                    className="rounded"
-                                  />
+                                  <input type="checkbox" checked={entry[doneKey] === 'true'} onChange={() => updateCardEntry(pageId, card.id, i, { done: entry[doneKey] === 'true' ? 'false' : 'true' })} className="rounded" />
                                   <span className="text-[11px] text-muted">完成</span>
                                 </label>
                               )}
-                              {/* Label tags */}
                               {labelKeys.filter(k => entry[k]).length > 0 && (
                                 <div className="flex flex-wrap gap-1">
                                   {labelKeys.filter(k => entry[k]).map(k => (
@@ -816,7 +849,6 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                                   ))}
                                 </div>
                               )}
-                              {/* Main content — merged broken lines, NO autoFormatText (it re-splits!) */}
                               {quoteKey && entry[quoteKey] && (
                                 <div className="text-[13px] text-[var(--ink)] leading-relaxed select-text">
                                   {mergeBrokenLines(entry[quoteKey]).split('\n\n').map((para, pi) => (
@@ -824,7 +856,6 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                                   ))}
                                 </div>
                               )}
-                              {/* Thought (merged) */}
                               {thoughtKey && entry[thoughtKey] && (
                                 <div className="mt-1 p-2 bg-accent/5 rounded text-[11px] text-[var(--ink)] leading-relaxed border-l-2 border-accent/30 select-text">
                                   {mergeBrokenLines(entry[thoughtKey]).split('\n\n').map((para, pi) => (
@@ -840,9 +871,12 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                   )
                 })}
               </div>
-            )}
-          </>
-        )
+            </div>
+          )
+        }
+
+        // Non-listMode cards: render fields normally
+        return <>{renderFields()}</>
     }
   }
 
