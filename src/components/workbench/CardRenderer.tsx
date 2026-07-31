@@ -167,7 +167,7 @@ function CoachCard({ card, pageId, updateCardField, toast }: {
           🤖 AI 提炼模块
         </div>
         <div>
-          <div className="text-[11px] font-semibold text-muted mb-1">📝 讲话内容</div>
+          <div className="text-[13px] font-semibold text-muted mb-1.5">📝 讲话内容</div>
           <textarea
             className="w-full min-h-[110px] p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
             placeholder="粘贴或输入讲话内容（自动清除碎行）..."
@@ -177,7 +177,7 @@ function CoachCard({ card, pageId, updateCardField, toast }: {
           />
         </div>
         <div>
-          <div className="text-[11px] font-semibold text-muted mb-1">📎 参考范例（可选）</div>
+          <div className="text-[13px] font-semibold text-muted mb-1.5">📎 参考范例（可选）</div>
           <textarea
             className="w-full min-h-[60px] p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-sm leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
             placeholder="粘贴满意的历史结果，AI 会模仿风格..."
@@ -199,7 +199,7 @@ function CoachCard({ card, pageId, updateCardField, toast }: {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <span className="text-[12px] font-semibold text-muted">📋 提炼记录（{records.length}）</span>
-          <button onClick={addManualRecord} className="text-[11px] text-accent hover:opacity-80 font-medium">
+          <button onClick={addManualRecord} className="text-[13px] text-accent hover:opacity-80 font-medium">
             ＋ 手动添加
           </button>
         </div>
@@ -580,7 +580,7 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover/sc:opacity-100 transition-all">
                         <button onClick={() => startEditEntry(i, entry)} className="text-[10px] px-1.5 py-0.5 bg-accent text-white rounded hover:opacity-90" title="编辑">✎</button>
-                        <button onClick={() => { deleteCardEntry(pageId, card.id, i); toast('场景已删除') }} className="text-[10px] px-1.5 py-0.5 bg-red-500 text-white rounded hover:bg-red-600" title="删除">✕</button>
+                        <button onClick={() => { deleteCardEntry(pageId, card.id, i); toast('场景已删除') }} className="text-[11px] text-muted/30 hover:text-red-500 transition-colors" title="删除">删</button>
                       </div>
                     </div>
                     {entry.goal && <div className="text-[11px] text-[var(--muted)] mt-0.5">🎯 {entry.goal}</div>}
@@ -729,7 +729,7 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
             <div className="space-y-2">
               {/* Quick input area — always visible */}
               <div className="border border-dashed border-[var(--border)] rounded-lg p-3 bg-[var(--bg)]">
-                <div className="text-[11px] font-semibold text-muted mb-1.5">📝 快速录入</div>
+                <div className="text-[14px] font-semibold text-muted mb-1.5">📝 快速录入</div>
                 <textarea
                   className="w-full min-h-[100px] p-2.5 rounded-lg border border-[var(--border)] bg-white text-sm leading-relaxed text-[var(--ink)] placeholder:text-muted/50 resize-y focus:outline-none focus:ring-2 focus:ring-accent/30"
                   placeholder="粘贴或输入内容（自动清除碎行），点保存变为下方一条记录..."
@@ -738,7 +738,7 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                   onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') handleQuickSave() }}
                 />
                 <div className="flex items-center justify-between mt-2">
-                  <span className="text-[10px] text-muted/50">Ctrl+Enter 快速保存</span>
+                  <span className="text-[12px] text-muted/50">Ctrl+Enter 快速保存</span>
                   <button
                     onClick={handleQuickSave}
                     disabled={quickSaving || !quickInput.trim()}
@@ -752,7 +752,7 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
               {/* Records list */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-muted">📋 记录（{(card.entries || []).length}）</span>
+                  <span className="text-[13px] text-muted">📋 记录（{(card.entries || []).length}）</span>
                 </div>
                 {(card.entries || []).length === 0 && (
                   <div className="text-xs text-muted/50 text-center py-4 border border-dashed border-[var(--border)] rounded-lg">
@@ -808,9 +808,9 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                         <span className="flex items-center gap-1 shrink-0 ml-1">
                           <button
                             onClick={(e) => { e.stopPropagation(); deleteCardEntry(pageId, card.id, i); toast('已删除') }}
-                            className="text-[10px] px-1.5 py-0.5 bg-red-500 text-white rounded hover:bg-red-600"
+                            className="text-[11px] text-muted/30 hover:text-red-500 transition-colors"
                             title="删除"
-                          >✕</button>
+                          >删</button>
                         </span>
                       </button>
 
