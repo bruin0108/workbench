@@ -367,7 +367,7 @@ function FieldContent({ value, placeholder, onSave, renderKey }: {
   )
 }
 
-export default function CardRenderer({ card, pageId, index }: { card: Card; pageId: string; index: number }) {
+export default function CardRenderer({ card, pageId, index, onDragStartCard }: { card: Card; pageId: string; index: number; onDragStartCard?: (e: React.DragEvent, idx: number) => void }) {
   const { updateCardField, addCardEntry, deleteCardEntry, updateCardEntry, appendCardEntries, setContextMenu } = useWorkbenchStore()
   const pages = useWorkbenchStore(s => s.pages)
   const { toast } = useToast()
@@ -571,8 +571,11 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                       return (
                         <button
                           key={i}
-                          onClick={() => setExpandedScenario(isOpen ? null : i)}
-                          className={`text-left text-[12px] px-2 py-2 rounded-md border transition-all ${levelCls(entry.level)} ${isOpen ? 'ring-2 ring-accent shadow-sm' : 'hover:shadow-sm'}`}
+                          onClick={() => {
+                            if (isOpen) { setExpandedScenario(null); setEditingEntry(null) }
+                            else { setExpandedScenario(i); startEditEntry(i, entry) }
+                          }}
+                          className={`text-left text-[12px] px-2 py-2 rounded-md border transition-all cursor-pointer select-none ${levelCls(entry.level)} ${isOpen ? 'ring-2 ring-accent shadow-sm' : 'hover:shadow-sm'}`}
                         >
                           <div className="flex items-center gap-1 leading-tight">
                             {entry.practicing === '1' && <span title="计划重点练">🎯</span>}
@@ -585,74 +588,42 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                 </div>
               ))}
             </div>
-            {/* 点开色块 → 看笔记 / 编辑 / 评级 */}
+            {/* 点开色块 → 就地展开为可编辑详情（标题/目标/关键句/笔记/评级） */}
             {expandedScenario !== null && (() => {
-              const entry = entries[expandedScenario]
               const i = expandedScenario
-              const isEditing = editingEntry === i
-              if (isEditing) {
-                const ek: Array<[string, string]> = [
-                  ['title', '场景名'], ['category', '分类'], ['goal', '目标'],
-                  ['phrases', '关键句（每行一句）'], ['notes', '笔记（支持 Markdown）'],
-                ]
-                return (
-                  <div className="mt-3 p-3 bg-white rounded-md border border-accent/30 space-y-2">
-                    {ek.map(([k, lab]) => (
-                      <div key={k}>
-                        <span className="text-[12px] font-semibold text-muted block mb-0.5">{lab}</span>
-                        <textarea
-                          value={editData[k] || ''}
-                          onChange={(e) => setEditData({ ...editData, [k]: e.target.value })}
-                          className="w-full text-[14px] px-2 py-1.5 border border-accent/30 rounded outline-none focus:border-accent bg-white resize-none"
-                          rows={k === 'phrases' || k === 'notes' ? 4 : 2}
-                        />
-                      </div>
-                    ))}
-                    <label className="flex items-center gap-1.5 text-[12px] text-[var(--muted)] cursor-pointer">
-                      <input type="checkbox" checked={editData.practicing === '1'} onChange={(e) => setEditData({ ...editData, practicing: e.target.checked ? '1' : '0' })} />
-                      计划重点练（显示🎯）
-                    </label>
-                    <div className="flex gap-2">
-                      <button onClick={() => saveEditEntry(i)} className="text-[12px] px-2.5 py-1 bg-accent text-white rounded hover:opacity-90">保存</button>
-                      <button onClick={() => setEditingEntry(null)} className="text-[12px] px-2.5 py-1 bg-gray-200 text-ink rounded hover:bg-gray-300">取消</button>
-                    </div>
-                  </div>
-                )
+              const entry = entries[i]
+              if (!entry) return null
+              const ek: Array<[string, string]> = [
+                ['title', '场景名'], ['category', '分类'], ['goal', '目标'],
+                ['phrases', '关键句（每行一句）'], ['notes', '笔记（支持 Markdown）'],
+              ]
+              const saveScenario = () => {
+                const { level, ...rest } = editData
+                updateCardEntry(pageId, card.id, i, rest)
+                setExpandedScenario(null)
+                setEditingEntry(null)
+                toast('已保存 ✅')
               }
               return (
-                <div className="mt-3 p-3 bg-white rounded-md border border-accent/30">
-                  <div className="flex items-center justify-between mb-1.5 gap-2">
-                    <div className="font-semibold text-[13px] text-[var(--ink)] flex items-center gap-1.5 min-w-0">
-                      {entry.practicing === '1' && <span>🎯</span>}
-                      <span className="truncate">{entry.title}</span>
-                      <SpeakButton text={entry.phrases || entry.goal || entry.title} className="text-[12px] shrink-0" title="朗读" />
+                <div className="mt-3 p-3 bg-white rounded-md border border-accent/30 space-y-2">
+                  {ek.map(([k, lab]) => (
+                    <div key={k}>
+                      <span className="text-[12px] font-semibold text-muted block mb-0.5">{lab}</span>
+                      <textarea
+                        value={(editData[k] ?? entry[k] ?? '')}
+                        onChange={(e) => setEditData({ ...editData, [k]: e.target.value })}
+                        className="w-full text-[14px] px-2 py-1.5 border border-accent/30 rounded outline-none focus:border-accent bg-white resize-none"
+                        rows={k === 'phrases' || k === 'notes' ? 4 : 2}
+                      />
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button onClick={() => startEditEntry(i, entry)} className="text-[11px] px-1.5 py-0.5 bg-accent text-white rounded hover:opacity-90">✎</button>
-                      <button onClick={() => { deleteCardEntry(pageId, card.id, i); setExpandedScenario(null); toast('场景已删除') }} className="text-[12px] text-muted/40 hover:text-red-500">删</button>
-                    </div>
-                  </div>
-                  {entry.goal && <div className="text-[12px] text-[var(--muted)] mb-1">🎯 {entry.goal}</div>}
-                  {entry.phrases && (
-                    <div className="mt-1 space-y-1">
-                      {entry.phrases.split('\n').filter(Boolean).map((p, pi) => (
-                        <div key={pi} className="text-[12px] text-[var(--ink)] flex items-start gap-1.5">
-                          <span className="text-accent shrink-0 mt-0.5">▸</span>
-                          <span className="flex-1">{p}</span>
-                          <SpeakButton text={p} className="shrink-0 text-[12px] mt-0.5" title="朗读这句" />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {entry.notes && (
-                    <div className="mt-2 p-2 bg-accent/5 rounded text-[12px] text-[var(--muted)] border-l-2 border-accent/30 pl-2.5">
-                      <Markdown text={autoFormatText(entry.notes)} />
-                    </div>
-                  )}
-                  {!entry.notes && !entry.phrases && !entry.goal && (
-                    <div className="text-[12px] text-[var(--muted)]/50 mt-1">还没有笔记，点 ✎ 添加词块/纠错。</div>
-                  )}
-                  <div className="flex gap-1.5 mt-2 flex-wrap">
+                  ))}
+                  <label className="flex items-center gap-1.5 text-[12px] text-[var(--muted)] cursor-pointer">
+                    <input type="checkbox" checked={editData.practicing === '1'} onChange={(e) => setEditData({ ...editData, practicing: e.target.checked ? '1' : '0' })} />
+                    计划重点练（显示🎯）
+                  </label>
+                  <div className="flex items-center gap-1.5 pt-1 flex-wrap">
+                    <SpeakButton text={editData.phrases || editData.goal || editData.title} className="text-[12px]" title="朗读" />
+                    <span className="text-[11px] text-muted">熟练度：</span>
                     {LEVELS.map((l) => (
                       <button
                         key={l.v}
@@ -662,6 +633,11 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
                         {l.label}
                       </button>
                     ))}
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button onClick={saveScenario} className="text-[12px] px-2.5 py-1 bg-accent text-white rounded hover:opacity-90">保存</button>
+                    <button onClick={() => { setExpandedScenario(null); setEditingEntry(null) }} className="text-[12px] px-2.5 py-1 bg-gray-200 text-ink rounded hover:bg-gray-300">收起</button>
+                    <button onClick={() => { deleteCardEntry(pageId, card.id, i); setExpandedScenario(null); setEditingEntry(null); toast('场景已删除') }} className="text-[12px] text-muted/40 hover:text-red-500 ml-auto">删</button>
                   </div>
                 </div>
               )
@@ -1017,13 +993,21 @@ export default function CardRenderer({ card, pageId, index }: { card: Card; page
     <div
       className="card"
       onContextMenu={handleContextMenu}
-      draggable
       data-card-id={card.id}
       data-page={pageId}
       data-index={index}
     >
       <div className={`card-header ${card.fixed ? 'text-accent' : ''}`}>
-        {!card.fixed && <GripVertical size={14} className="text-muted opacity-30 cursor-grab active:cursor-grabbing" />}
+        {!card.fixed && (
+          <span
+            draggable
+            onDragStart={(e) => { e.stopPropagation(); onDragStartCard?.(e, index) }}
+            className="cursor-grab active:cursor-grabbing touch-none"
+            title="拖动排序"
+          >
+            <GripVertical size={14} className="text-muted opacity-30" />
+          </span>
+        )}
         {card.fixed && <span className="text-base">🤖</span>}
         <span className="flex-1">{card.title}</span>
         {!card.fixed && (

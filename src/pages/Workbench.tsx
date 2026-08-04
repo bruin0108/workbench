@@ -298,14 +298,12 @@ export default function PageView() {
         }).map((card, idx) => (
           <div
             key={card.id}
-            draggable={!card.fixed}
-            onDragStart={(e) => handleDragStart(e, idx)}
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, idx)}
             className="animate-card-in"
             style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
           >
-            <CardRenderer card={card} pageId={currentPage} index={idx} />
+            <CardRenderer card={card} pageId={currentPage} index={idx} onDragStartCard={handleDragStart} />
           </div>
         ))}
       </div>
