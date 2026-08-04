@@ -39,6 +39,15 @@ export default function NotebookCard({ card, pageId }: { card: Card; pageId: str
     }
   }
 
+  const saveLessonContent = (i: number, content: string) => {
+    const updated = [...notebooks]
+    if (updated[courseIdx]?.lessons[i]) {
+      updated[courseIdx].lessons[i].content = content
+      if (saveTimer.current) clearTimeout(saveTimer.current)
+      saveTimer.current = setTimeout(() => save(updated), 500)
+    }
+  }
+
   const addCourse = () => {
     if (!newCourseName.trim()) return
     save([...notebooks, { name: newCourseName.trim(), lessons: [] }])
@@ -141,116 +150,82 @@ export default function NotebookCard({ card, pageId }: { card: Card; pageId: str
         )}
       </div>
 
-      {/* Main area: lesson list + content */}
-      <div className="flex min-h-[320px]">
-        {/* Lesson sidebar */}
-        <div className="w-44 flex-shrink-0 border-r border-[var(--border)] flex flex-col">
-          <div className="flex-1 overflow-y-auto p-2">
-            <div className="text-[10px] font-semibold text-[var(--muted)] uppercase tracking-wider mb-1.5 px-1">课节</div>
-            {lessons.map((ls, i) => (
-              <div key={i} className="flex items-center gap-1 group">
-                {editingLesson === i ? (
-                  <input autoFocus value={editLessonTitle} onChange={e => setEditLessonTitle(e.target.value)}
-                    onBlur={renameLesson} onKeyDown={e => { if (e.key === 'Enter') renameLesson(); if (e.key === 'Escape') setEditingLesson(null) }}
-                    className="flex-1 text-[12px] px-1.5 py-1 border border-[var(--accent)] rounded outline-none bg-transparent text-[var(--ink)]" />
-                ) : (
-                  <button
-                    onClick={() => setLessonIdx(i)}
-                    className={`flex-1 flex items-center gap-1.5 px-2 py-1.5 rounded text-[12px] text-left transition-colors ${
-                      i === lessonIdx
-                        ? 'bg-[var(--accent)]/8 text-[var(--accent)] font-semibold'
-                        : 'text-[var(--ink)] hover:bg-[var(--accent)]/5'
-                    }`}
-                    onDoubleClick={() => { setEditingLesson(i); setEditLessonTitle(ls.title) }}
-                  >
-                    <ChevronRight size={10} className={`shrink-0 transition-transform ${i === lessonIdx ? 'text-[var(--accent)]' : 'text-[var(--muted)]/30'}`} />
-                    <span className="truncate">{ls.title}</span>
-                  </button>
-                )}
-                {editingLesson !== i && (
-                  <button onClick={() => deleteLesson(i)}
-                    className="opacity-0 group-hover:opacity-100 text-[10px] text-[var(--muted)] hover:text-red-500 shrink-0 mr-1">
-                    <Trash2 size={10} />
-                  </button>
-                )}
-              </div>
-            ))}
-            {addingLesson ? (
-              <div className="flex items-center gap-1 mt-1 px-1">
-                <input autoFocus value={newLessonTitle} onChange={e => setNewLessonTitle(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') addLesson(); if (e.key === 'Escape') { setAddingLesson(false); setNewLessonTitle('') } }}
-                  placeholder="课节标题" className="flex-1 text-[12px] px-1.5 py-1 border border-[var(--accent)] rounded outline-none bg-transparent text-[var(--ink)]" />
-                <button onClick={addLesson} className="text-[var(--accent)]"><Check size={13} /></button>
-                <button onClick={() => { setAddingLesson(false); setNewLessonTitle('') }} className="text-[var(--muted)]"><X size={13} /></button>
-              </div>
-            ) : course && (
-              <button onClick={() => setAddingLesson(true)}
-                className="flex items-center gap-1 px-2 py-1.5 mt-1 text-[11px] text-[var(--muted)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/5 rounded w-full transition-colors">
-                <Plus size={12} /> 新增课节
-              </button>
-            )}
+      {/* Main area: 单栏平铺所有课节（无左侧空白栏） */}
+      <div className="flex flex-col pt-2">
+        <div className="flex items-center gap-2 px-1 pb-2 mb-1 border-b border-[var(--border)]">
+          <span className="text-[12px] text-[var(--muted)]">{lessons.length} 节</span>
+          <div className="ml-auto flex items-center gap-0.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-md overflow-hidden">
+            <button onClick={() => setReadMode(false)}
+              className={`text-[11px] px-2 py-1 transition-colors ${!readMode ? 'bg-[var(--accent)] text-white' : 'text-[var(--muted)] hover:text-[var(--ink)]'}`}>
+              编辑
+            </button>
+            <button onClick={() => setReadMode(true)}
+              className={`text-[11px] px-2 py-1 transition-colors ${readMode ? 'bg-[var(--accent)] text-white' : 'text-[var(--muted)] hover:text-[var(--ink)]'}`}>
+              阅读
+            </button>
           </div>
         </div>
 
-        {/* Content area */}
-        <div className="flex-1 flex flex-col min-w-0">
-          {lesson ? (
-            <>
-              {/* Header bar */}
-              <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[var(--border)] bg-[var(--bg-rule)]/30">
-                <BookOpen size={12} className="text-[var(--muted)]" />
-                <span className="text-[12px] text-[var(--muted)]">{course.name}</span>
-                <ChevronRight size={10} className="text-[var(--muted)]/40" />
-                <span className="text-[13px] font-semibold text-[var(--ink)]">{lesson.title}</span>
-                <div className="ml-auto flex items-center gap-0.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-md overflow-hidden">
-                  <button onClick={() => setReadMode(false)}
-                    className={`text-[11px] px-2 py-1 transition-colors ${!readMode ? 'bg-[var(--accent)] text-white' : 'text-[var(--muted)] hover:text-[var(--ink)]'}`}>
-                    <Pencil size={10} className="inline mr-0.5" />编辑
-                  </button>
-                  <button onClick={() => setReadMode(true)}
-                    className={`text-[11px] px-2 py-1 transition-colors ${readMode ? 'bg-[var(--accent)] text-white' : 'text-[var(--muted)] hover:text-[var(--ink)]'}`}>
-                    <Eye size={10} className="inline mr-0.5" />阅读
-                  </button>
+        {lessons.length === 0 ? (
+          <div className="text-[13px] text-[var(--muted)]/40 py-10 text-center">点击下方「新增课节」开始记录</div>
+        ) : (
+          <div className="flex flex-col">
+            {lessons.map((ls, i) => (
+              <div key={i} className="group border-b border-[var(--border)] last:border-0 py-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <BookOpen size={12} className="text-[var(--muted)]/50 shrink-0" />
+                  {editingLesson === i ? (
+                    <input autoFocus value={editLessonTitle} onChange={e => setEditLessonTitle(e.target.value)}
+                      onBlur={renameLesson} onKeyDown={e => { if (e.key === 'Enter') renameLesson(); if (e.key === 'Escape') setEditingLesson(null) }}
+                      className="flex-1 text-[13px] font-semibold px-1.5 py-1 border border-[var(--accent)] rounded outline-none bg-transparent text-[var(--ink)]" />
+                  ) : (
+                    <button onClick={() => { setEditingLesson(i); setEditLessonTitle(ls.title) }}
+                      className="flex-1 text-left text-[13px] font-semibold text-[var(--ink)] hover:text-[var(--accent)] truncate">
+                      {ls.title}
+                    </button>
+                  )}
+                  {editingLesson !== i && (
+                    <button onClick={() => deleteLesson(i)}
+                      className="opacity-0 group-hover:opacity-100 text-[10px] text-[var(--muted)] hover:text-red-500 shrink-0 ml-1">
+                      <Trash2 size={11} />
+                    </button>
+                  )}
+                </div>
+                <div className="pl-5">
+                  {readMode ? (
+                    ls.content ? (
+                      <Markdown text={autoFormatText(ls.content)} className="notebook-read" />
+                    ) : (
+                      <div className="text-[12px] text-[var(--muted)]/40">（空）</div>
+                    )
+                  ) : (
+                    <textarea
+                      value={ls.content}
+                      onChange={e => saveLessonContent(i, e.target.value)}
+                      placeholder="写点什么… 支持 Markdown"
+                      className="w-full text-[13px] leading-[1.8] text-[var(--ink)] outline-none resize-none bg-transparent min-h-[56px] placeholder:text-[var(--muted)]/40"
+                    />
+                  )}
                 </div>
               </div>
-              {/* Content */}
-              <div className="flex-1 overflow-y-auto p-4">
-                {readMode ? (
-                  lesson.content ? (
-                    <Markdown text={autoFormatText(lesson.content)} className="notebook-read" />
-                  ) : (
-                    <div className="text-[13px] text-[var(--muted)]/40 text-center py-16">还没有内容，切换到编辑模式开始写作</div>
-                  )
-                ) : (
-                  <>
-                    <textarea
-                      ref={contentRef}
-                      value={lesson.content}
-                      onChange={e => saveContent(e.target.value)}
-                      placeholder="开始写... 支持 Markdown 语法，切换「阅读」查看渲染效果"
-                      className="w-full text-[14px] leading-[1.85] text-[var(--ink)] outline-none resize-none bg-transparent min-h-[260px] placeholder:text-[var(--muted)]/40"
-                      onKeyDown={e => {
-                        if (e.key === 'Tab') {
-                          e.preventDefault()
-                          const ta = e.currentTarget
-                          const start = ta.selectionStart; const end = ta.selectionEnd
-                          ta.value = ta.value.substring(0, start) + '  ' + ta.value.substring(end)
-                          ta.selectionStart = ta.selectionEnd = start + 2
-                          saveContent(ta.value)
-                        }
-                      }}
-                    />
-                    <p className="text-[10px] text-[var(--muted)] mt-1">自动保存 · Tab 缩进 · 支持 Markdown</p>
-                  </>
-                )}
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-[13px] text-[var(--muted)]/40">
-              {notebooks.length === 0 ? '点击上方「新增」创建课程' : lessonIdx < 0 ? '点击左侧「新增课节」开始记录' : '选择左侧课节'}
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
+
+        {addingLesson ? (
+          <div className="flex items-center gap-1 mt-3 px-1">
+            <input autoFocus value={newLessonTitle} onChange={e => setNewLessonTitle(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') addLesson(); if (e.key === 'Escape') { setAddingLesson(false); setNewLessonTitle('') } }}
+              placeholder="课节标题" className="flex-1 text-[12px] px-1.5 py-1 border border-[var(--accent)] rounded outline-none bg-transparent text-[var(--ink)]" />
+            <button onClick={addLesson} className="text-[var(--accent)]"><Check size={13} /></button>
+            <button onClick={() => { setAddingLesson(false); setNewLessonTitle('') }} className="text-[var(--muted)]"><X size={13} /></button>
+          </div>
+        ) : course && (
+          <button onClick={() => setAddingLesson(true)}
+            className="flex items-center gap-1 px-1 py-2 mt-2 text-[11px] text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
+            <Plus size={12} /> 新增课节
+          </button>
+        )}
       </div>
     </div>
   )
