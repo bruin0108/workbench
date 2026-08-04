@@ -1,5 +1,5 @@
 import { GripVertical, ChevronDown, ChevronRight, Pencil, X, Check } from 'lucide-react'
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, Fragment } from 'react'
 import { Card, formatFieldLabel, PAGE_DEFS } from '@/types/workbench'
 import { useWorkbenchStore } from '@/store/workbenchStore'
 import { useToast } from './Toast'
@@ -569,79 +569,76 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
                       const i = entry._i
                       const isOpen = expandedScenario === i
                       return (
-                        <button
-                          key={i}
-                          onClick={() => {
-                            if (isOpen) { setExpandedScenario(null); setEditingEntry(null) }
-                            else { setExpandedScenario(i); startEditEntry(i, entry) }
-                          }}
-                          className={`text-left text-[12px] px-2 py-2 rounded-md border transition-all cursor-pointer select-none ${levelCls(entry.level)} ${isOpen ? 'ring-2 ring-accent shadow-sm' : 'hover:shadow-sm'}`}
-                        >
-                          <div className="flex items-center gap-1 leading-tight">
-                            {entry.practicing === '1' && <span title="计划重点练">🎯</span>}
-                            <span className="font-medium">{entry.title}</span>
-                          </div>
-                        </button>
+                        <Fragment key={i}>
+                          <button
+                            onClick={() => {
+                              if (isOpen) { setExpandedScenario(null); setEditingEntry(null) }
+                              else { setExpandedScenario(i); startEditEntry(i, entry) }
+                            }}
+                            className={`relative text-left text-[12px] px-2 py-2 pr-6 rounded-md border transition-all cursor-pointer select-none ${levelCls(entry.level)} ${isOpen ? 'ring-2 ring-accent shadow-sm' : 'hover:shadow-sm'}`}
+                          >
+                            <div className="flex items-center gap-1 leading-tight">
+                              <span className="font-medium">{entry.title}</span>
+                            </div>
+                            <Pencil size={11} className="absolute right-1.5 top-1.5 text-[var(--muted)] opacity-40" />
+                          </button>
+                          {isOpen && (() => {
+                            const ek: Array<[string, string]> = [
+                              ['title', '场景名'], ['category', '分类'], ['goal', '目标'],
+                              ['phrases', '关键句（每行一句）'], ['notes', '笔记（支持 Markdown）'],
+                            ]
+                            const saveScenario = () => {
+                              const { level, ...rest } = editData
+                              updateCardEntry(pageId, card.id, i, rest)
+                              setExpandedScenario(null)
+                              setEditingEntry(null)
+                              toast('已保存 ✅')
+                            }
+                            return (
+                              <div className="col-span-full mt-2 mb-1 p-3 bg-white rounded-md border border-accent/30 space-y-2">
+                                {ek.map(([k, lab]) => (
+                                  <div key={k}>
+                                    <span className="text-[12px] font-semibold text-muted block mb-0.5">{lab}</span>
+                                    <textarea
+                                      value={(editData[k] ?? entry[k] ?? '')}
+                                      onChange={(e) => setEditData({ ...editData, [k]: e.target.value })}
+                                      className="w-full text-[14px] px-2 py-1.5 border border-accent/30 rounded outline-none focus:border-accent bg-white resize-none"
+                                      rows={k === 'phrases' || k === 'notes' ? 4 : 2}
+                                    />
+                                  </div>
+                                ))}
+                                <label className="flex items-center gap-1.5 text-[12px] text-[var(--muted)] cursor-pointer">
+                                  <input type="checkbox" checked={editData.practicing === '1'} onChange={(e) => setEditData({ ...editData, practicing: e.target.checked ? '1' : '0' })} />
+                                  计划重点练（仅作个人标记）
+                                </label>
+                                <div className="flex items-center gap-1.5 pt-1 flex-wrap">
+                                  <SpeakButton text={editData.phrases || editData.goal || editData.title} className="text-[12px]" title="朗读" />
+                                  <span className="text-[11px] text-muted">熟练度：</span>
+                                  {LEVELS.map((l) => (
+                                    <button
+                                      key={l.v}
+                                      onClick={() => updateCardEntry(pageId, card.id, i, { level: l.v })}
+                                      className={`text-[12px] px-2 py-1 rounded border transition-all ${entry.level === l.v ? l.cls + ' font-semibold ring-1 ring-current' : 'border-[var(--border)] text-[var(--muted)] hover:border-accent'}`}
+                                    >
+                                      {l.label}
+                                    </button>
+                                  ))}
+                                </div>
+                                <div className="flex gap-2 pt-1">
+                                  <button onClick={saveScenario} className="text-[12px] px-2.5 py-1 bg-accent text-white rounded hover:opacity-90">保存</button>
+                                  <button onClick={() => { setExpandedScenario(null); setEditingEntry(null) }} className="text-[12px] px-2.5 py-1 bg-gray-200 text-ink rounded hover:bg-gray-300">收起</button>
+                                  <button onClick={() => { deleteCardEntry(pageId, card.id, i); setExpandedScenario(null); setEditingEntry(null); toast('场景已删除') }} className="text-[12px] text-muted/40 hover:text-red-500 ml-auto">删</button>
+                                </div>
+                              </div>
+                            )
+                          })()}
+                        </Fragment>
                       )
                     })}
                   </div>
                 </div>
               ))}
             </div>
-            {/* 点开色块 → 就地展开为可编辑详情（标题/目标/关键句/笔记/评级） */}
-            {expandedScenario !== null && (() => {
-              const i = expandedScenario
-              const entry = entries[i]
-              if (!entry) return null
-              const ek: Array<[string, string]> = [
-                ['title', '场景名'], ['category', '分类'], ['goal', '目标'],
-                ['phrases', '关键句（每行一句）'], ['notes', '笔记（支持 Markdown）'],
-              ]
-              const saveScenario = () => {
-                const { level, ...rest } = editData
-                updateCardEntry(pageId, card.id, i, rest)
-                setExpandedScenario(null)
-                setEditingEntry(null)
-                toast('已保存 ✅')
-              }
-              return (
-                <div className="mt-3 p-3 bg-white rounded-md border border-accent/30 space-y-2">
-                  {ek.map(([k, lab]) => (
-                    <div key={k}>
-                      <span className="text-[12px] font-semibold text-muted block mb-0.5">{lab}</span>
-                      <textarea
-                        value={(editData[k] ?? entry[k] ?? '')}
-                        onChange={(e) => setEditData({ ...editData, [k]: e.target.value })}
-                        className="w-full text-[14px] px-2 py-1.5 border border-accent/30 rounded outline-none focus:border-accent bg-white resize-none"
-                        rows={k === 'phrases' || k === 'notes' ? 4 : 2}
-                      />
-                    </div>
-                  ))}
-                  <label className="flex items-center gap-1.5 text-[12px] text-[var(--muted)] cursor-pointer">
-                    <input type="checkbox" checked={editData.practicing === '1'} onChange={(e) => setEditData({ ...editData, practicing: e.target.checked ? '1' : '0' })} />
-                    计划重点练（显示🎯）
-                  </label>
-                  <div className="flex items-center gap-1.5 pt-1 flex-wrap">
-                    <SpeakButton text={editData.phrases || editData.goal || editData.title} className="text-[12px]" title="朗读" />
-                    <span className="text-[11px] text-muted">熟练度：</span>
-                    {LEVELS.map((l) => (
-                      <button
-                        key={l.v}
-                        onClick={() => updateCardEntry(pageId, card.id, i, { level: l.v })}
-                        className={`text-[12px] px-2 py-1 rounded border transition-all ${entry.level === l.v ? l.cls + ' font-semibold ring-1 ring-current' : 'border-[var(--border)] text-[var(--muted)] hover:border-accent'}`}
-                      >
-                        {l.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex gap-2 pt-1">
-                    <button onClick={saveScenario} className="text-[12px] px-2.5 py-1 bg-accent text-white rounded hover:opacity-90">保存</button>
-                    <button onClick={() => { setExpandedScenario(null); setEditingEntry(null) }} className="text-[12px] px-2.5 py-1 bg-gray-200 text-ink rounded hover:bg-gray-300">收起</button>
-                    <button onClick={() => { deleteCardEntry(pageId, card.id, i); setExpandedScenario(null); setEditingEntry(null); toast('场景已删除') }} className="text-[12px] text-muted/40 hover:text-red-500 ml-auto">删</button>
-                  </div>
-                </div>
-              )
-            })()}
             <button
               onClick={() => appendCardEntries(pageId, card.id, [{ title: '新场景', category: '其他', goal: '', phrases: '', notes: '', level: '0', practicing: '0' }])}
               className="mt-3 w-full text-[12px] py-2 rounded-md border border-dashed border-accent text-accent hover:bg-accent/5 transition-colors"
