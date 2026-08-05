@@ -622,11 +622,10 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
                             return (
                               <div className="col-span-full mt-2 mb-1 p-4 bg-white rounded-lg border border-accent/30 space-y-3">
                                 {/* 四大框 */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {/* 四大框：一行一个，上下堆叠 */}
+                                <div className="space-y-3">
                                   {SEC('📝 词块', sVocabRef, 6)}
                                   {SEC('💬 关键句（每行一句）', sPhrasesRef, 6)}
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                   {SEC('✅ 纠错', sCorrRef, 5)}
                                   {SEC('🎯 下次加难', sNextRef, 4)}
                                 </div>
