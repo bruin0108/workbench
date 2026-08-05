@@ -625,7 +625,6 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
                     {items.map((entry) => {
                       const i = entry._i
                       const isOpen = expandedScenario === i
-                      const icon = sceneIcon(entry.title, entry.category || '')
                       return (
                         <Fragment key={i}>
                           <button
@@ -636,7 +635,6 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
                             className={`relative text-left text-[12px] px-2 py-2 pr-6 rounded-md border transition-all cursor-pointer select-none ${levelCls(entry.level)} ${isOpen ? 'ring-2 ring-accent shadow-sm' : 'hover:shadow-sm'}`}
                           >
                             <div className="flex items-center gap-1 leading-tight">
-                              <span className="shrink-0" role="img">{icon}</span>
                               <span className="font-medium truncate">{entry.title}</span>
                             </div>
                             <Pencil size={11} className="absolute right-1.5 top-1.5 text-[var(--muted)] opacity-40" />
