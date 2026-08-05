@@ -549,6 +549,47 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
           { v: '2', label: '🟢 流利', cls: 'bg-green-50 text-green-700 border-green-300' },
         ]
         const levelCls = (lv: string) => (LEVELS.find((l) => l.v === lv) || LEVELS[0]).cls
+        // 根据场景标题/分类匹配可爱图标
+        const sceneIcon = (title: string, cat: string): string => {
+          const t = title + ' ' + cat
+          if (/问路|指路|方向|地铁|公交|打车|交通|路口|步行|transit|direction|subway|bus|taxi/i.test(t)) return '🗺️'
+          if (/咖啡|coffee|cafe|星巴克/i.test(t)) return '☕'
+          if (/餐厅|点餐|饭店|吃饭|restaurant|order|menu/i.test(t)) return '🍽️'
+          if (/购物|商场|超市|买|商店|shop|store|mall|market/i.test(t)) return '🛒'
+          if (/机场|飞机|登机|行李|airport|flight|boarding/i.test(t)) return '✈️'
+          if (/酒店|入住|前台|hotel|check.?in|lobby/i.test(t)) return '🏨'
+          if (/银行|取款|存钱|bank|atm|account/i.test(t)) return '🏦'
+          if (/医院|看病|医生|药|hospital|doctor|pharmacy/i.test(t)) return '🏥'
+          if (/理发|剪发|发型|hair|barber|salon|cut/i.test(t)) return '💇'
+          if (/健身|运动|gym|workout|exercise/i.test(t)) return '🏋️'
+          if (/公园|户外|野餐|park|picnic|outdoor/i.test(t)) return '🌳'
+          if (/图书馆|借书|library|book/i.test(t)) return '📚'
+          if (/电影|影院|cinema|movie|ticket/i.test(t)) return '🎬'
+          if (/电话|打电话|phone|call|ring/i.test(t)) return '📞'
+          if (/邮局|寄信|快递|post|mail|package|deliver/i.test(t)) return '📦'
+          if (/厨房|做饭|切菜|洗碗|冰箱|烘焙|调味|厨房/i.test(t)) return '🍳'
+          if (/客厅|卧室|浴室|洗衣|打扫|家具|水电煤|搬家|居家|household|living|bedroom|bathroom|laundry|clean/i.test(t)) return '🏠'
+          if (/办公|开会|面试|邮件|打印|office|meeting|interview|email|print/i.test(t)) return '💼'
+          if (/学校|上课|考试|老师|school|class|exam|teacher/i.test(t)) return '🎓'
+          if (/天气|温度|下雨|晴天|weather|rain|sunny|temperature/i.test(t)) return '🌤️'
+          if (/时间|日期|几点|今天|明天|time|date|today|tomorrow/i.test(t)) return '⏰'
+          if (/数字|号码|价格|钱|number|price|money|count/i.test(t)) return '🔢'
+          if (/颜色|大小|长短|color|size|length/i.test(t)) return '🎨'
+          if (/家人|亲戚|朋友|邻居|family|friend|neighbor/i.test(t)) return '👨‍👩‍👧'
+          if (/宠物|猫|狗|pet|cat|dog/i.test(t)) return '🐾'
+          if (/自我介绍|名字|年龄|来自|introduce|name|age|from/i.test(t)) return '👋'
+          // 默认按分类兜底
+          if (/居家/i.test(cat)) return '🏠'
+          if (/厨房/i.test(cat)) return '🍳'
+          if (/出行/i.test(cat)) return '🚗'
+          if (/社交/i.test(cat)) return '🤝'
+          if (/购物/i.test(cat)) return '🛒'
+          if (/服务/i.test(cat)) return '🔧'
+          if (/校园/i.test(cat)) return '🎓'
+          if (/职场/i.test(cat)) return '💼'
+          if (/休闲/i.test(cat)) return '🎮'
+          return '📌'  // 兜底
+        }
         // 按分类分组（保持插入顺序）
         const groups: Record<string, Array<Record<string, string> & { _i: number }>> = {}
         entries.forEach((e, i) => {
@@ -580,10 +621,11 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
                     <span className="w-1.5 h-1.5 rounded-full bg-accent inline-block" />
                     {cat} <span className="text-[var(--muted)] font-normal">({items.length})</span>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
                     {items.map((entry) => {
                       const i = entry._i
                       const isOpen = expandedScenario === i
+                      const icon = sceneIcon(entry.title, entry.category || '')
                       return (
                         <Fragment key={i}>
                           <button
@@ -594,7 +636,8 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
                             className={`relative text-left text-[12px] px-2 py-2 pr-6 rounded-md border transition-all cursor-pointer select-none ${levelCls(entry.level)} ${isOpen ? 'ring-2 ring-accent shadow-sm' : 'hover:shadow-sm'}`}
                           >
                             <div className="flex items-center gap-1 leading-tight">
-                              <span className="font-medium">{entry.title}</span>
+                              <span className="shrink-0" role="img">{icon}</span>
+                              <span className="font-medium truncate">{entry.title}</span>
                             </div>
                             <Pencil size={11} className="absolute right-1.5 top-1.5 text-[var(--muted)] opacity-40" />
                           </button>
