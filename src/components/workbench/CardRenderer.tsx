@@ -402,10 +402,26 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
   const [editData, setEditData] = useState<Record<string, string>>({})
   // scenario 色块地图：当前点开看笔记的色块索引
   const [expandedScenario, setExpandedScenario] = useState<number | null>(null)
+  // scenario 四大框临时编辑值（用 ref 避免 hooks 嵌套在条件渲染里）
+  const sVocabRef = useRef('')
+  const sPhrasesRef = useRef('')
+  const sCorrRef = useRef('')
+  const sNextRef = useRef('')
 
   const startEditEntry = (i: number, entry: Record<string, string>) => {
     setEditingEntry(i)
     setEditData({ ...entry })
+    // 初始化四大框 ref（从 notes 按 Markdown 标题拆段）
+    const rawNotes = (entry.notes ?? '') as string
+    const section = (hdr: string) => {
+      const re = new RegExp(`\\*\\*${hdr}\\*\\*\\s*\\n([\\s\\S]*?)(?=\\n\\*\\*|$)`, 'i')
+      const m = rawNotes.match(re)
+      return m ? m[1].trim() : ''
+    }
+    sVocabRef.current = section('学到的词块') || section('词块')
+    sPhrasesRef.current = (entry.phrases ?? '') as string
+    sCorrRef.current = section('纠错笔记') || section('纠错')
+    sNextRef.current = section('下次加难') || section('加难')
   }
 
   const saveEditEntry = (i: number) => {
@@ -583,42 +599,23 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
                             <Pencil size={11} className="absolute right-1.5 top-1.5 text-[var(--muted)] opacity-40" />
                           </button>
                           {isOpen && (() => {
-                            // 把 notes 按 Markdown 标题拆成 4 段填入对应框
-                            const rawNotes = (editData.notes ?? entry.notes ?? '') as string
-                            const rawPhrases = (editData.phrases ?? entry.phrases ?? '') as string
-                            const section = (hdr: string) => {
-                              const re = new RegExp(`\\*\\*${hdr}\\*\\*\\s*\\n([\\s\\S]*?)(?=\\n\\*\\*|$)`, 'i')
-                              const m = rawNotes.match(re)
-                              return (m ? m[1].trim() : '') as string
-                            }
-                            const [vocab, corrections, nextSteps] = [
-                              section('学到的词块') || section('词块'),
-                              section('纠错笔记') || section('纠错'),
-                              section('下次加难') || section('加难'),
-                            ]
-                            // 本地 4 段编辑状态
-                            const [sVocab, setSVocab] = useState(vocab)
-                            const [sPhrases, setSPhrases] = useState(rawPhrases)
-                            const [sCorr, setSCorr] = useState(corrections)
-                            const [sNext, setSNext] = useState(nextSteps)
-
                             const saveScenario = () => {
                               const combinedNotes = [
-                                sVocab ? `**学到的词块**\n${sVocab}` : '',
-                                sCorr ? `**纠错笔记**\n${sCorr}` : '',
-                                sNext ? `**下次加难**\n${sNext}` : '',
+                                sVocabRef.current ? `**学到的词块**\n${sVocabRef.current}` : '',
+                                sCorrRef.current ? `**纠错笔记**\n${sCorrRef.current}` : '',
+                                sNextRef.current ? `**下次加难**\n${sNextRef.current}` : '',
                               ].filter(Boolean).join('\n\n')
-                              updateCardEntry(pageId, card.id, i, { phrases: sPhrases, notes: combinedNotes })
+                              updateCardEntry(pageId, card.id, i, { phrases: sPhrasesRef.current, notes: combinedNotes })
                               setExpandedScenario(null)
                               setEditingEntry(null)
                               toast('已保存 ✅')
                             }
 
                             const BOX_CLS = "w-full text-[14px] px-3 py-2 border border-accent/30 rounded-md outline-none focus:border-accent bg-white resize-y leading-relaxed"
-                            const SEC = (label: string, ph: string, val: string, setVal: (v: string) => void, rows: number) => (
+                            const SEC = (label: string, refObj: React.RefObject<string>, rows: number) => (
                               <div>
                                 <span className="text-[13px] font-semibold text-[var(--ink)] block mb-1">{label}</span>
-                                <textarea className={BOX_CLS} value={val} onChange={(e) => setVal(e.target.value)} rows={rows} />
+                                <textarea className={BOX_CLS} value={refObj.current} onChange={(e) => { refObj.current = e.target.value }} rows={rows} />
                               </div>
                             )
 
@@ -626,16 +623,16 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
                               <div className="col-span-full mt-2 mb-1 p-4 bg-white rounded-lg border border-accent/30 space-y-3">
                                 {/* 四大框 */}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                  {SEC('📝 词块', 'vocab', sVocab, setSVocab, 6)}
-                                  {SEC('💬 关键句（每行一句）', 'phrases', sPhrases, setSPhrases, 6)}
+                                  {SEC('📝 词块', sVocabRef, 6)}
+                                  {SEC('💬 关键句（每行一句）', sPhrasesRef, 6)}
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                  {SEC('✅ 纠错', 'corrections', sCorr, setSCorr, 5)}
-                                  {SEC('🎯 下次加难', 'nextSteps', sNext, setSNext, 4)}
+                                  {SEC('✅ 纠错', sCorrRef, 5)}
+                                  {SEC('🎯 下次加难', sNextRef, 4)}
                                 </div>
                                 {/* 底部操作栏 */}
                                 <div className="flex items-center gap-2 pt-2 flex-wrap border-t border-accent/10 mt-1">
-                                  <SpeakButton text={sPhrases || sVocab || entry.title} className="text-[12px]" title="朗读关键句" />
+                                  <SpeakButton text={sPhrasesRef.current || sVocabRef.current || entry.title} className="text-[12px]" title="朗读关键句" />
                                   <label className="flex items-center gap-1.5 text-[12px] text-[var(--muted)] cursor-pointer ml-2">
                                     <input type="checkbox" checked={editData.practicing === '1'} onChange={(e) => setEditData({ ...editData, practicing: e.target.checked ? '1' : '0' })} />
                                     计划重点练
