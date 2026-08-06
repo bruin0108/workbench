@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 interface SpeakButtonProps {
   text: string
@@ -13,8 +13,9 @@ interface SpeakButtonProps {
  * - 所有现代浏览器（Chrome / Edge / Safari）内置英文语音
  * - 点击朗读，再次点击停止
  *
- * 关键点：Chrome/Edge 对「单个超过约 15 秒的语音」会自动截断（已知 bug）。
- * 因此把长文本按句子切成短句、排队连续朗读，从根本上规避截断。
+ * 规避两个浏览器语音引擎的已知 bug：
+ * 1) 单句 >~15s 自动截断 → 把长文本按句子切短、排队朗读；
+ * 2) 连续念很多短句时中间句被静默丢掉 → 句间留 ~120ms 间隔，并加 9s pause/resume 保活。
  */
 const splitChunks = (text: string): string[] => {
   const segs = text
@@ -27,11 +28,14 @@ const splitChunks = (text: string): string[] => {
 
 export default function SpeakButton({ text, lang = 'en-US', className = '', title = '朗读' }: SpeakButtonProps) {
   const [speaking, setSpeaking] = useState(false)
+  const cancelRef = useRef(false)
+  const keepRef = useRef<number | null>(null)
 
   // 组件卸载时停止朗读，避免串音
   useEffect(() => {
     return () => {
       try { window.speechSynthesis?.cancel() } catch { /* ignore */ }
+      if (keepRef.current) window.clearInterval(keepRef.current)
     }
   }, [])
 
@@ -39,21 +43,40 @@ export default function SpeakButton({ text, lang = 'en-US', className = '', titl
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null
   if (!text || !text.trim()) return null
 
+  const clearKeep = () => {
+    if (keepRef.current) {
+      window.clearInterval(keepRef.current)
+      keepRef.current = null
+    }
+  }
+
   const toggle = () => {
     try {
       const synth = window.speechSynthesis
       if (speaking) {
+        cancelRef.current = true
+        clearKeep()
         synth.cancel()
         setSpeaking(false)
         return
       }
       // 先停掉上一段，避免叠加
       synth.cancel()
+      cancelRef.current = false
       const chunks = splitChunks(text)
       let i = 0
       setSpeaking(true)
+      // 9s pause/resume 一次，兜底绕过单句 >15s 截断
+      clearKeep()
+      keepRef.current = window.setInterval(() => {
+        if (synth.speaking) {
+          synth.pause()
+          synth.resume()
+        }
+      }, 9000)
       const speakNext = () => {
-        if (i >= chunks.length) {
+        if (cancelRef.current || i >= chunks.length) {
+          clearKeep()
           setSpeaking(false)
           return
         }
@@ -62,13 +85,19 @@ export default function SpeakButton({ text, lang = 'en-US', className = '', titl
         u.rate = 0.92
         u.onend = () => {
           i += 1
-          speakNext()
+          // 句间留间隔，规避 Chrome 跳过中间句（丢句 bug）
+          window.setTimeout(speakNext, 120)
         }
-        u.onerror = () => setSpeaking(false)
+        u.onerror = () => {
+          clearKeep()
+          setSpeaking(false)
+        }
         synth.speak(u)
       }
-      speakNext()
+      // 首句也留一点间隔，避免 cancel 后第一句被吞
+      window.setTimeout(speakNext, 60)
     } catch {
+      clearKeep()
       setSpeaking(false)
     }
   }
