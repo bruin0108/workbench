@@ -653,9 +653,13 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
                             }
 
                             const BOX_CLS = "w-full text-[14px] px-3 py-2 border border-accent/30 rounded-md outline-none focus:border-accent bg-white resize-y leading-relaxed"
-                            const SEC = (label: string, refObj: React.RefObject<string>, rows: number) => (
+                            const cleanForSpeak = (t: string) => t.replace(/\/[^/]+\//g, '').trim()
+                            const SEC = (label: string, refObj: React.RefObject<string>, rows: number, speakText?: string) => (
                               <div>
-                                <span className="text-[13px] font-semibold text-[var(--ink)] block mb-1">{label}</span>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-[13px] font-semibold text-[var(--ink)]">{label}</span>
+                                  {speakText ? <SpeakButton text={speakText} className="text-[12px]" title={`朗读${label.replace(/[（(].*$/, '')}`} /> : null}
+                                </div>
                                 <textarea className={BOX_CLS} value={refObj.current} onChange={(e) => { refObj.current = e.target.value }} rows={rows} />
                               </div>
                             )
@@ -665,14 +669,13 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
                                 {/* 四大框 */}
                                 {/* 四大框：一行一个，上下堆叠 */}
                                 <div className="space-y-3">
-                                  {SEC('📝 词块', sVocabRef, 6)}
-                                  {SEC('💬 关键句（每行一句）', sPhrasesRef, 6)}
+                                  {SEC('📝 词块', sVocabRef, 6, cleanForSpeak(sVocabRef.current))}
+                                  {SEC('💬 关键句（每行一句）', sPhrasesRef, 6, sPhrasesRef.current)}
                                   {SEC('✅ 纠错', sCorrRef, 5)}
                                   {SEC('🎯 下次加难', sNextRef, 4)}
                                 </div>
                                 {/* 底部操作栏 */}
                                 <div className="flex items-center gap-2 pt-2 flex-wrap border-t border-accent/10 mt-1">
-                                  <SpeakButton text={sPhrasesRef.current || sVocabRef.current || entry.title} className="text-[12px]" title="朗读关键句" />
                                   <label className="flex items-center gap-1.5 text-[12px] text-[var(--muted)] cursor-pointer ml-2">
                                     <input type="checkbox" checked={editData.practicing === '1'} onChange={(e) => setEditData({ ...editData, practicing: e.target.checked ? '1' : '0' })} />
                                     计划重点练
