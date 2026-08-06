@@ -653,7 +653,12 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
                             }
 
                             const BOX_CLS = "w-full text-[14px] px-3 py-2 border border-accent/30 rounded-md outline-none focus:border-accent bg-white resize-y leading-relaxed"
-                            const cleanForSpeak = (t: string) => t.replace(/\/[^/]+\//g, '').trim()
+                            const cleanForSpeak = (t: string) => t
+                              .replace(/\*\*([^*]+)\*\*/g, '$1') // 去加粗 **
+                              .replace(/\/[^/]+\//g, '')          // 去音标 /.../
+                              .replace(/→/g, ' to ')             // 箭头转 to
+                              .replace(/\s+/g, ' ')
+                              .trim()
                             const SEC = (label: string, refObj: React.RefObject<string>, rows: number, speakText?: string) => (
                               <div>
                                 <div className="flex items-center justify-between mb-1">
