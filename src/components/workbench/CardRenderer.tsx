@@ -656,7 +656,17 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
                             const cleanForSpeak = (t: string) => t
                               .replace(/\*\*([^*]+)\*\*/g, '$1') // 去加粗 **
                               .replace(/\/[^/]+\//g, '')          // 去音标 /.../
+                              .replace(/[•·▪]/g, '')             // 去项目符号
+                              .replace(/—/g, ' ')               // 长破折号转空格
                               .replace(/→/g, ' to ')             // 箭头转 to
+                              .replace(/\s+/g, ' ')
+                              .trim()
+                            // 关键句(对话)：去掉说话人前缀 You: / Me (摊主): 等，只念句子
+                            const cleanDialogue = (t: string) => t
+                              .split(/\n+/)
+                              .map((line) => line.replace(/^\s*(You|Me(?:\s*\([^)]*\)|\s*（[^）]*）)?)\s*:\s*/i, '').trim())
+                              .filter(Boolean)
+                              .join(' ')
                               .replace(/\s+/g, ' ')
                               .trim()
                             const SEC = (label: string, refObj: React.RefObject<string>, rows: number, speakText?: string) => (
@@ -675,7 +685,7 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
                                 {/* 四大框：一行一个，上下堆叠 */}
                                 <div className="space-y-3">
                                   {SEC('📝 词块', sVocabRef, 6, cleanForSpeak(sVocabRef.current))}
-                                  {SEC('💬 关键句（每行一句）', sPhrasesRef, 6, sPhrasesRef.current)}
+                                  {SEC('💬 关键句（每行一句）', sPhrasesRef, 6, cleanDialogue(sPhrasesRef.current))}
                                   {SEC('✅ 纠错', sCorrRef, 5)}
                                   {SEC('🎯 下次加难', sNextRef, 4)}
                                 </div>
