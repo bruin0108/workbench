@@ -9,7 +9,7 @@ import SpeakButton from './SpeakButton'
 type Notebook = { name: string; lessons: Array<{ title: string; content: string }>; quiz?: boolean }
 
 export default function NotebookCard({ card, pageId }: { card: Card; pageId: string }) {
-  const { updateCardNotebooks } = useWorkbenchStore()
+  const { updateCardNotebooks, updateCardField } = useWorkbenchStore()
   const notebooks: Notebook[] = card.notebooks || []
   const [courseIdx, setCourseIdx] = useState(0)
   const [lessonIdx, setLessonIdx] = useState(0)
@@ -23,8 +23,33 @@ export default function NotebookCard({ card, pageId }: { card: Card; pageId: str
   const [addingLesson, setAddingLesson] = useState(false)
   const [newLessonTitle, setNewLessonTitle] = useState('')
   const [revealed, setRevealed] = useState<Set<number>>(new Set())
+  const [showAllWords, setShowAllWords] = useState(false)
   const contentRef = useRef<HTMLTextAreaElement>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout>>()
+
+  // 生词本：根据翻译表现自动收缩（"我会了"的词不再显示）
+  const knownWords: string[] = card.fields?.knownWords || []
+  const isKnown = (h: string) => knownWords.includes(h)
+  const vocabNb = notebooks.find(n => n.name.includes('单词表'))
+  const vocabHeads: string[] = vocabNb?.lessons.map(l => l.title) || []
+  // 从英文句子里挑出属于本集单词表的词（用于"我会了"自动划掉）
+  const headwordsIn = (text: string): string[] => {
+    const lower = ' ' + text.toLowerCase() + ' '
+    return vocabHeads.filter(h => {
+      const w = h.toLowerCase().trim()
+      if (!w) return false
+      // 多词短语用子串匹配；单词用边界匹配避免误判（如 "in" 命中 "win"）
+      if (w.includes(' ')) return lower.includes(' ' + w + ' ') || lower.includes(w)
+      return new RegExp('(^|[^a-z])' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '([^a-z]|$)').test(lower)
+    })
+  }
+  const markKnown = (heads: string[]) => {
+    if (!heads.length) return
+    const next = Array.from(new Set([...knownWords, ...heads]))
+    updateCardField(pageId, card.id, 'knownWords', next)
+  }
+  const isVocabTab = !!course?.name.includes('单词表')
+  const renderItems = lessons.map((ls, i) => ({ ls, i })).filter(({ ls }) => !(isVocabTab && !showAllWords && isKnown(ls.title)))
 
   const course = notebooks[courseIdx]
   const lessons = course?.lessons || []
@@ -156,7 +181,18 @@ export default function NotebookCard({ card, pageId }: { card: Card; pageId: str
       <div className="flex flex-col pt-2">
         <div className="flex items-center gap-2 px-1 pb-2 mb-1 border-b border-[var(--border)]">
           <span className="text-[12px] text-[var(--muted)]">{lessons.length} 节</span>
+          {isVocabTab && (
+            <span className="text-[11px] text-[var(--muted)]">
+              生词 {renderItems.length}/{lessons.length}
+            </span>
+          )}
           <div className="ml-auto flex items-center gap-0.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-md overflow-hidden">
+            {isVocabTab && (
+              <button onClick={() => setShowAllWords(v => !v)}
+                className={`text-[11px] px-2 py-1 transition-colors ${showAllWords ? 'bg-[var(--accent)] text-white' : 'text-[var(--muted)] hover:text-[var(--ink)]'}`}>
+                {showAllWords ? '只看生词' : '显示全部'}
+              </button>
+            )}
             <button onClick={() => setReadMode(false)}
               className={`text-[11px] px-2 py-1 transition-colors ${!readMode ? 'bg-[var(--accent)] text-white' : 'text-[var(--muted)] hover:text-[var(--ink)]'}`}>
               编辑
@@ -172,7 +208,7 @@ export default function NotebookCard({ card, pageId }: { card: Card; pageId: str
           <div className="text-[13px] text-[var(--muted)]/40 py-10 text-center">点击下方「新增课节」开始记录</div>
         ) : (
           <div className="flex flex-col">
-            {lessons.map((ls, i) => (
+            {renderItems.map(({ ls, i }) => (
               <div key={i} className="group border-b border-[var(--border)] last:border-0 py-3">
                 {course.quiz && readMode ? (
                   /* ===== 答题模式：先显示中文，点击查看英文答案 + 朗读 ===== */
@@ -181,9 +217,22 @@ export default function NotebookCard({ card, pageId }: { card: Card; pageId: str
                     <div className="flex-1 min-w-0">
                       <div className="text-[13px] font-semibold text-[var(--ink)] leading-relaxed">{ls.title}</div>
                       {revealed.has(i) ? (
-                        <div className="mt-1.5 flex items-start gap-2">
-                          <Markdown text={autoFormatText(ls.content)} className="notebook-read flex-1" />
-                          <SpeakButton text={ls.content} className="shrink-0 mt-0.5" title="朗读答案" />
+                        <div className="mt-1.5">
+                          <div className="flex items-start gap-2">
+                            <Markdown text={autoFormatText(ls.content)} className="notebook-read flex-1" />
+                            <SpeakButton text={ls.content} className="shrink-0 mt-0.5" title="朗读答案" />
+                          </div>
+                          <div className="mt-1.5 flex items-center gap-2">
+                            <button
+                              onClick={() => markKnown(headwordsIn(ls.content))}
+                              className="inline-flex items-center gap-1 text-[12px] px-2 py-0.5 rounded-full border border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10 transition-colors"
+                            >
+                              ✅ 我会了
+                            </button>
+                            <span className="text-[11px] text-[var(--muted)]">
+                              这句里的词自动划出生词本
+                            </span>
+                          </div>
                         </div>
                       ) : (
                         <button
@@ -210,7 +259,14 @@ export default function NotebookCard({ card, pageId }: { card: Card; pageId: str
                           {ls.title}
                         </button>
                       )}
-                      {editingLesson !== i && (
+                      {editingLesson !== i && isVocabTab && (
+                        <button onClick={() => markKnown([ls.title])}
+                          title="划出生词本"
+                          className="opacity-0 group-hover:opacity-100 text-[10px] text-emerald-600 hover:bg-emerald-500/10 shrink-0 ml-1 px-1 rounded">
+                          ✓ 我认识
+                        </button>
+                      )}
+                      {editingLesson !== i && !isVocabTab && (
                         <button onClick={() => deleteLesson(i)}
                           className="opacity-0 group-hover:opacity-100 text-[10px] text-[var(--muted)] hover:text-red-500 shrink-0 ml-1">
                           <Trash2 size={11} />
