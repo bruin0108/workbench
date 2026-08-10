@@ -80,8 +80,7 @@ function WeeklyBars({ history }: { history: Array<{ date: string; morning: boole
 }
 
 // --- Today's Focus (zero-input daily snapshot) ---
-interface ScenarioMini { name: string; level?: number; notes?: string }
-interface CardMini { id: string; title: string; scenarios?: ScenarioMini[]; entries?: Array<Record<string, string>> }
+interface CardMini { id: string; title: string; type?: string; entries?: Array<Record<string, string>> }
 function TodayFocus({ pages }: { pages: Record<string, CardMini[]> }) {
   // Greeting based on time
   const hour = new Date().getHours()
@@ -93,16 +92,22 @@ function TodayFocus({ pages }: { pages: Record<string, CardMini[]> }) {
   const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
   const dateStr = `${now.getMonth() + 1}月${now.getDate()}日 ${weekdays[now.getDay()]}`
 
-  // Extract scenario map data
+  // Extract scenario map data from card.entries
   const engPage = pages['life-english'] || []
   const scenarioCard = engPage.find(c => c.id === 'eng-scenario-map')
-  const scenarios = scenarioCard?.scenarios || []
+  const rawEntries = scenarioCard?.entries || []
+  // Each entry: { name, level ('0'|'1'|'2'), notes, ... }
+  const scenarios = rawEntries.map(e => ({
+    name: e.name || e.title || '',
+    level: parseInt(e.level || '0', 10),
+    notes: e.notes || '',
+  }))
 
   // Stats
   const total = scenarios.length
-  const learned = scenarios.filter(s => (s.level || 0) >= 2).length
-  const inProgress = scenarios.filter(s => (s.level || 0) === 1).length
-  const untouched = scenarios.filter(s => !s.level || s.level === 0).length
+  const learned = scenarios.filter(s => s.level >= 2).length
+  const inProgress = scenarios.filter(s => s.level === 1).length
+  const untouched = scenarios.filter(s => s.level === 0).length
 
   // Pick today's focus: prioritize untouched > inProgress > random learned
   const focusScenario = (() => {
@@ -200,33 +205,6 @@ function TodayFocus({ pages }: { pages: Record<string, CardMini[]> }) {
           <span className="shrink-0 whitespace-nowrap">{learned}已掌握 · {inProgress}练习中</span>
         </div>
       )}
-    </div>
-  )
-}
-
-// --- Random flashback ---
-function RememberCard({ pages }: { pages: Record<string, Array<{ id: string; title: string; entries?: Array<Record<string, string>> }>> }) {
-  const allEntries: Array<{ text: string; source: string }> = []
-  Object.entries(pages).forEach(([, cards]) => {
-    cards.forEach(card => {
-      if (card.entries) {
-        card.entries.forEach(entry => {
-          const v = Object.entries(entry).find(([k]) => k !== 'done')?.[1]
-          if (v && v.length > 30) allEntries.push({ text: v.substring(0, 80), source: card.title })
-        })
-      }
-    })
-  })
-  if (allEntries.length < 3) return null
-
-  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000)
-  const pick = allEntries[(dayOfYear * 7 + 3) % allEntries.length]
-
-  return (
-    <div className="bg-white dark:bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-4 animate-fade-in">
-      <div className="text-[11px] font-semibold text-[var(--muted)] mb-2">💭 还记得吗？</div>
-      <div className="text-[13px] leading-relaxed text-[var(--ink)] italic">{pick.text}...</div>
-      <div className="text-[10px] text-[var(--muted)] mt-2">— 来自「{pick.source}」</div>
     </div>
   )
 }
@@ -558,15 +536,13 @@ export default function WorkbenchDashboard() {
   const [lastSaved, setLastSaved] = useState('')
 
   const dailyTasks = [
-    { key: 'morning', icon: '☀️', label: '早上跟读', time: '1课', task: dailyTaskContent.morning },
-    { key: 'eveningNce', icon: '🪨', label: '新概念', time: '1课', task: dailyTaskContent.eveningNce },
-    { key: 'eveningCoach', icon: '🪨', label: 'AI 教练', time: '1轮', task: dailyTaskContent.eveningCoach },
-    { key: 'noon', icon: '🪨', label: 'Anki', time: '20词', task: dailyTaskContent.noon },
-    { key: 'eveningJournal', icon: '💧', label: '外刊精读', time: '1篇泛读', task: dailyTaskContent.eveningJournal },
-    { key: 'eveningPhilosophy', icon: '💧', label: '哲学简史', time: '1章', task: dailyTaskContent.eveningPhilosophy },
-    { key: 'reading', icon: '📖', label: '阅读', time: '1章', task: dailyTaskContent.reading },
+    { key: 'eveningCoach', icon: '🗣️', label: '英语对话', time: '1轮·15min', task: dailyTaskContent.eveningCoach },
+    { key: 'eveningNce', icon: '🪨', label: '新概念跟读', time: '1课·30min', task: dailyTaskContent.eveningNce },
+    { key: 'noon', icon: '📝', label: '每日单词', time: '30词·15min', task: dailyTaskContent.noon },
+    { key: 'reading', icon: '📖', label: '阅读/听书', time: '1章·30min', task: dailyTaskContent.reading },
+    { key: 'eveningPhilosophy', icon: '💧', label: '哲学简史', time: '1章·30min', task: dailyTaskContent.eveningPhilosophy },
     { key: 'exercise', icon: '🏃', label: '运动', time: '30min', task: dailyTaskContent.exercise },
-    { key: 'review', icon: '📝', label: '复盘', time: '1篇', task: dailyTaskContent.review },
+    { key: 'review', icon: '📝', label: '复盘', time: '10min', task: dailyTaskContent.review },
   ]
 
   const startEdit = (key: string) => {
@@ -649,19 +625,14 @@ export default function WorkbenchDashboard() {
 
   const getTips = () => {
     const tips = []
-    if (hour < 10) tips.push('☀️ 早上是记忆力最好的时候，友邻外刊跟读效果最好')
-    else if (hour < 14) tips.push('🌤️ 午休时间用 Anki 刷 30 张单词卡，碎片时间利用起来')
-    else if (hour < 18) tips.push('💪 下午精力下降，适合做机械性任务。留点脑力给晚上的深度学习')
-    else if (hour < 21) tips.push('🌙 晚上的黄金学习时间到了！新概念听写 + 哲学简史 + AI 教练')
-    else tips.push('😴 夜深了，复盘一下今天的学习，早点休息，明天继续')
-    if (stats.streak > 0) tips.push(`🔥 已经连续 ${stats.streak} 天打卡，保持节奏！`)
-    if (stats.rate < 50) tips.push('📊 今天完成率偏低，挑一件最小的任务先做起来')
-    // Backup reminder: warn if > 7 days since last export
-    try {
-      const lastExport = localStorage.getItem('wb_last_export')
-      const daysSinceExport = lastExport ? Math.floor((Date.now() - parseInt(lastExport)) / 86400000) : 99
-      if (daysSinceExport > 7) tips.push('💾 超过 7 天没有备份了，建议导出数据以防万一')
-    } catch {}
+    if (hour < 10) tips.push('☀️ 早上记忆力最好，适合背单词或跟读新概念')
+    else if (hour < 14) tips.push('🌤️ 午休碎片时间刷30个单词，或看两页书')
+    else if (hour < 18) tips.push('💪 下午适合练英语对话，来一场 Volka 场景练习吧')
+    else if (hour < 21) tips.push('🌙 晚上黄金时间：佩奇翻译 + 哲学简史 + 阅读')
+    else tips.push('😴 夜深了，复盘一下今天，早点休息')
+    if (stats.streak > 0) tips.push(`🔥 连续 ${stats.streak} 天打卡，保持节奏！`)
+    if (stats.rate < 50) tips.push('📊 今天完成率偏低，挑一件最小的先做起来')
+    // Backup: Gist auto-sync handles this, no manual reminder needed
     return tips
   }
   const tips = getTips()
@@ -733,9 +704,6 @@ export default function WorkbenchDashboard() {
           ))}
         </div>
       </div>
-
-      {/* RememberCard */}
-      <RememberCard pages={pages} />
 
       {/* Tasks + Progress Ring */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
