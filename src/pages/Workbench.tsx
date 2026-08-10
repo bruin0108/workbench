@@ -3,6 +3,7 @@ import { Plus, Download, Upload, HelpCircle, Search, Moon, Sun, X, Zap, Filter, 
 import { useWorkbenchStore } from '@/store/workbenchStore'
 import WorkbenchDashboard from '@/components/workbench/Dashboard'
 import CardRenderer from '@/components/workbench/CardRenderer'
+import CardErrorBoundary from '@/components/workbench/CardErrorBoundary'
 import ApiKeyModal from '@/components/workbench/ApiKeyModal'
 import CloudSyncModal from '@/components/workbench/CloudSyncModal'
 import { scheduleAutoPush, autoPullOnLoad } from '@/utils/gistAutoSync'
@@ -303,7 +304,9 @@ export default function PageView() {
             className="animate-card-in"
             style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
           >
-            <CardRenderer card={card} pageId={currentPage} index={idx} onDragStartCard={handleDragStart} />
+            <CardErrorBoundary title={card.title}>
+              <CardRenderer card={card} pageId={currentPage} index={idx} onDragStartCard={handleDragStart} />
+            </CardErrorBoundary>
           </div>
         ))}
       </div>

@@ -48,12 +48,13 @@ export default function NotebookCard({ card, pageId }: { card: Card; pageId: str
     const next = Array.from(new Set([...knownWords, ...heads]))
     updateCardField(pageId, card.id, 'knownWords', next)
   }
-  const isVocabTab = !!course?.name.includes('单词表')
-  const renderItems = lessons.map((ls, i) => ({ ls, i })).filter(({ ls }) => !(isVocabTab && !showAllWords && isKnown(ls.title)))
-
   const course = notebooks[courseIdx]
   const lessons = course?.lessons || []
-  const lesson = lessons[lessonIdx]
+
+  const isVocabTab = !!course?.name?.includes('单词表')
+  const renderItems = lessons
+    .map((ls, i) => ({ ls, i }))
+    .filter(({ ls }) => !(isVocabTab && !showAllWords && isKnown(ls.title)))
 
   const save = (updated: Notebook[]) => updateCardNotebooks(pageId, card.id, updated)
 
