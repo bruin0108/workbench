@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, Component, type ReactNode } from 'react'
 import { useWorkbenchStore } from '@/store/workbenchStore'
 import { getReminderSettings, saveReminderSettings, requestNotificationPermission, startReminderLoop, stopReminderLoop } from '@/utils/reminder'
 import { pickSyncFile } from '@/utils/autoSync'
@@ -79,6 +79,14 @@ function WeeklyBars({ history }: { history: Array<{ date: string; morning: boole
   )
 }
 
+// --- Error boundary: keep one broken block from blanking the whole page ---
+class SafeBlock extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() { return { failed: true } }
+  componentDidCatch(err: unknown) { console.error('[SafeBlock] block crashed:', err) }
+  render() { return this.state.failed ? null : this.props.children }
+}
+
 // --- Today's Focus (zero-input daily snapshot) ---
 interface CardMini { id: string; title: string; type?: string; entries?: Array<Record<string, string>> }
 function TodayFocus({ pages }: { pages: Record<string, CardMini[]> }) {
@@ -105,14 +113,16 @@ function TodayFocus({ pages }: { pages: Record<string, CardMini[]> }) {
 
   // Stats
   const total = scenarios.length
+  const untouchedList = scenarios.filter(s => s.level === 0)
+  const inProgressList = scenarios.filter(s => s.level === 1)
   const learned = scenarios.filter(s => s.level >= 2).length
-  const inProgress = scenarios.filter(s => s.level === 1).length
-  const untouched = scenarios.filter(s => s.level === 0).length
+  const inProgress = inProgressList.length
+  const untouched = untouchedList.length
 
   // Pick today's focus: prioritize untouched > inProgress > random learned
   const focusScenario = (() => {
     if (scenarios.length === 0) return null
-    const candidates = [...untouched, ...inProgress]
+    const candidates = [...untouchedList, ...inProgressList]
     if (candidates.length > 0) {
       // Deterministic daily rotation
       const dayIdx = Math.floor(now.getTime() / 86400000) % candidates.length
@@ -683,7 +693,7 @@ export default function WorkbenchDashboard() {
       </div>
 
       {/* Today's Focus */}
-      <TodayFocus pages={pages} />
+      <SafeBlock><TodayFocus pages={pages} /></SafeBlock>
 
       {/* Daily Quote */}
       {dailyQuote && (
