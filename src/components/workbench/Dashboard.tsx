@@ -87,88 +87,107 @@ class SafeBlock extends Component<{ children: ReactNode }, { failed: boolean }> 
   render() { return this.state.failed ? null : this.props.children }
 }
 
-// --- Today's Focus (zero-input daily snapshot) ---
-interface CardMini { id: string; title: string; type?: string; entries?: Array<Record<string, string>> }
+// --- Today's Focus: show real learning content, not cold stats ---
+interface CardMini { id: string; title: string; type?: string; entries?: Array<Record<string, string>>; notebooks?: Array<{ name: string; lessons: Array<{ title: string; content: string }> }> }
 function TodayFocus({ pages }: { pages: Record<string, CardMini[]> }) {
-  // Greeting based on time
   const hour = new Date().getHours()
   const greeting = hour < 11 ? '早上好' : hour < 14 ? '中午好' : hour < 18 ? '下午好' : '晚上好'
   const emoji = hour < 11 ? '🌅' : hour < 14 ? '☀️' : hour < 18 ? '🌤' : '🌙'
 
-  // Date display
   const now = new Date()
   const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
   const dateStr = `${now.getMonth() + 1}月${now.getDate()}日 ${weekdays[now.getDay()]}`
 
-  // Extract scenario map data from card.entries
+  // --- Collect real content from learning records ---
+  const snippets: Array<{ text: string; source: string; type: 'dialogue' | 'review' | 'peppa' | 'vocab' }> = []
+
   const engPage = pages['life-english'] || []
+
+  // 1. Scenario key sentences (from learned/in-progress scenarios)
   const scenarioCard = engPage.find(c => c.id === 'eng-scenario-map')
   const rawEntries = scenarioCard?.entries || []
-  // Each entry: { name, level ('0'|'1'|'2'), notes, ... }
   const scenarios = rawEntries.map(e => ({
     name: e.name || e.title || '',
     level: parseInt(e.level || '0', 10),
     notes: e.notes || '',
   }))
-
-  // Stats
-  const total = scenarios.length
-  const untouchedList = scenarios.filter(s => s.level === 0)
-  const inProgressList = scenarios.filter(s => s.level === 1)
-  const learned = scenarios.filter(s => s.level >= 2).length
-  const inProgress = inProgressList.length
-  const untouched = untouchedList.length
-
-  // Pick today's focus: prioritize untouched > inProgress > random learned
-  const focusScenario = (() => {
-    if (scenarios.length === 0) return null
-    const candidates = [...untouchedList, ...inProgressList]
-    if (candidates.length > 0) {
-      // Deterministic daily rotation
-      const dayIdx = Math.floor(now.getTime() / 86400000) % candidates.length
-      return candidates[dayIdx]
-    }
-    // All learned: rotate through all
-    const dayIdx = Math.floor(now.getTime() / 86400000) % scenarios.length
-    return scenarios[dayIdx]
-  })()
-
-  // Extract key sentences from all scenario notes for random pickup
-  const keySentences: Array<{ text: string; source: string }> = []
-  scenarios.forEach(s => {
-    if (!s.notes) return
-    // Find 关键句 section
+  // Only get from scenarios that have been touched (level >= 1)
+  scenarios.filter(s => s.level >= 1 && s.notes).forEach(s => {
     const sections = s.notes.split(/\n(?=##)/)
     const keySection = sections.find(sec => sec.includes('关键句') || sec.includes('Key'))
-    if (!keySection) return
-    // Extract dialogue lines (You:/Me: patterns or bullet lines)
-    const lines = keySection.split('\n').filter(l =>
-      l.includes('You:') || l.includes('Me:') ||
-      (l.startsWith('*') && l.length > 10 && /[a-zA-Z]/.test(l))
-    )
-    lines.forEach(l => {
-      const clean = l.replace(/^\*+|\*\s*/g, '').replace(/`[^`]*`/g, '').trim()
-      if (clean.length > 8 && clean.length < 200) keySentences.push({ text: clean, source: s.name })
-    })
+    if (keySection) {
+      // Extract You:/Me: dialogue lines
+      const lines = keySection.split('\n').filter(l =>
+        /You:|Me \(/.test(l) && l.length > 10
+      )
+      lines.forEach(l => {
+        const clean = l.replace(/^\*+\s*/, '').replace(/`[^`]*`/g, '').trim()
+        if (clean.length > 10 && clean.length < 300) {
+          snippets.push({ text: clean, source: s.name, type: 'dialogue' })
+        }
+      })
+    }
   })
 
-  // Also add review sentences from eng-weakspots / review md
+  // 2. Review dialogues (from eng-weakspots / daily review)
   engPage.forEach(card => {
     if (!card.entries) return
     card.entries.forEach(entry => {
       const v = Object.entries(entry).find(([k]) => k !== 'done')?.[1]
-      if (v && v.length > 20 && v.length < 500 && /[a-zA-Z]{3,}/.test(v)) {
-        // Grab first English sentence-like segment
-        const sentences = v.split(/[。\n]/).filter(s => /[a-zA-Z]{5,}/.test(s) && s.length < 200)
-        sentences.slice(0, 2).forEach(s => keySentences.push({ text: s.trim(), source: card.title }))
+      if (v && v.length > 30 && /[a-zA-Z]{5,}/.test(v)) {
+        // Grab English-looking sentences
+        const sents = v.split(/[。\n]/).filter(s =>
+          /^[^a-zA-Z]*[a-zA-Z]{8,}/.test(s) && s.length < 250 && !s.startsWith('http')
+        )
+        sents.slice(0, 3).forEach(s =>
+          snippets.push({ text: s.trim(), source: card.title, type: 'review' })
+        )
       }
     })
   })
 
+  // 3. Peppa translation practice (from notebook card)
+  const peppaCard = engPage.find(c => c.id === 'eng-peppa')
+  if (peppaCard?.notebooks) {
+    peppaCard.notebooks.forEach(nb => {
+      if (!nb.lessons) return
+      nb.lessons.forEach(ls => {
+        // For practice lessons, content has Chinese question + English answer
+        if (ls.content && ls.content.length > 5) {
+          const lines = ls.content.split('\n').filter(l =>
+            /^[a-zA-Z]/.test(l.trim()) && l.trim().length > 8 && l.trim().length < 200
+          )
+          lines.slice(0, 2).forEach(l =>
+            snippets.push({ text: l.trim(), source: `佩奇·${nb.name}`, type: 'peppa' })
+          )
+        }
+      })
+    })
+  }
+
+  // --- Pick 2-3 diverse snippets for display ---
   const daySeed = Math.floor(now.getTime() / 86400000)
-  const quote = keySentences.length > 0
-    ? keySentences[(daySeed * 13 + 7) % keySentences.length]
-    : null
+  const picked: typeof snippets = []
+  const usedTypes = new Set<string>()
+  const usedSources = new Set<string>()
+  // Shuffle by day seed and pick diverse ones
+  const sorted = [...snippets].sort((a, b) => {
+    const ha = (a.source.charCodeAt(0) * 31 + a.text.charCodeAt(0)) % 9999
+    const hb = (b.source.charCodeAt(0) * 31 + b.text.charCodeAt(0)) % 9999
+    return ((ha + daySeed * 17) % 9999) - ((hb + daySeed * 17) % 9999)
+  })
+  for (const s of sorted) {
+    if (picked.length >= 3) break
+    // Prefer diversity: don't pick same type twice unless we run out
+    if (usedTypes.has(s.type) && snippets.filter(x => x.type === s.type).length > picked.filter(x => x.type === s.type).length && usedTypes.size < 3) continue
+    if (usedSources.has(s.source) && snippets.length > 3) continue
+    picked.push(s)
+    usedTypes.add(s.type)
+    usedSources.add(s.source)
+  }
+
+  // Fallback: if no content at all, show a gentle prompt
+  const isEmpty = picked.length === 0
 
   return (
     <div className="bg-white dark:bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-4 mb-4 animate-fade-in">
@@ -177,42 +196,24 @@ function TodayFocus({ pages }: { pages: Record<string, CardMini[]> }) {
         <div className="text-[10px] text-[var(--muted)]/60">{dateStr}</div>
       </div>
 
-      {/* Focus scenario */}
-      {focusScenario && (
-        <div className="mb-3 p-2.5 rounded-lg bg-gradient-to-r from-[var(--accent)]/6 to-transparent border border-[var(--accent)]/15">
-          <div className="flex items-center gap-1.5 mb-1">
-            <span className="text-xs">🎯</span>
-            <span className="text-[12px] font-medium text-[var(--ink)]">今日建议：{focusScenario.name}</span>
-            {focusScenario.level === 0 && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">未学</span>}
-            {focusScenario.level === 1 && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-green-50 text-green-600">练习中</span>}
-            {(focusScenario.level || 0) >= 2 && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-yellow-50 text-yellow-600">复习</span>}
-          </div>
-          <div className="text-[11px] text-[var(--muted)] leading-relaxed">
-            {total - untouched} / {total} 场景已解锁 · {untouched > 0 ? `还有 ${untouched} 个新场景等你探索` : '全部场景已解锁，继续保持！'}
-          </div>
+      {isEmpty ? (
+        <div className="text-[13px] text-[var(--muted)]/60 leading-relaxed py-2 text-center">
+          开始一场英语对话，这里就会显示你练过的内容 ✨
         </div>
-      )}
-
-      {/* Random key sentence with speak */}
-      {quote && (
-        <div className="mb-3 flex items-start gap-2 p-2.5 rounded-lg bg-[var(--bg-rule)]/50">
-          <span className="text-xs mt-0.5 shrink-0">💬</span>
-          <div className="flex-1 min-w-0">
-            <div className="text-[13px] text-[var(--ink)] leading-relaxed italic">{quote.text}</div>
-            <div className="text-[10px] text-[var(--muted)] mt-1">— 来自「{quote.source}」</div>
-          </div>
-          <SpeakButton text={quote.text} className="shrink-0 mt-0.5" title="朗读" />
-        </div>
-      )}
-
-      {/* Mini progress bar */}
-      {total > 0 && (
-        <div className="flex items-center gap-3 text-[10px] text-[var(--muted)]">
-          <div className="flex-1 h-1.5 bg-[var(--bg-rule)] rounded-full overflow-hidden flex">
-            {learned > 0 && <div className="h-full bg-green-400 transition-all" style={{ width: `${(learned / total) * 100}%` }} />}
-            {inProgress > 0 && <div className="h-full bg-yellow-400 transition-all" style={{ width: `${(inProgress / total) * 100}%` }} />}
-          </div>
-          <span className="shrink-0 whitespace-nowrap">{learned}已掌握 · {inProgress}练习中</span>
+      ) : (
+        <div className="space-y-2.5">
+          {picked.map((item, i) => (
+            <div key={i} className="flex items-start gap-2 p-2.5 rounded-lg bg-[var(--bg-rule)]/40 hover:bg-[var(--bg-rule)]/60 transition-colors">
+              <span className="text-xs mt-0.5 shrink-0">
+                {item.type === 'dialogue' ? '💬' : item.type === 'peppa' ? '🐷' : item.type === 'review' ? '📝' : '📌'}
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] text-[var(--ink)] leading-relaxed">{item.text}</div>
+                <div className="text-[10px] text-[var(--muted)]/70 mt-0.5">— {item.source}</div>
+              </div>
+              <SpeakButton text={item.text} className="shrink-0 mt-0.5" title="朗读" />
+            </div>
+          ))}
         </div>
       )}
     </div>
