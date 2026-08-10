@@ -407,6 +407,9 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
   const sPhrasesRef = useRef('')
   const sCorrRef = useRef('')
   const sNextRef = useRef('')
+  // scenario 词块（生词本）：已掌握词集合 + 只看不会的开关（避免 hooks 嵌套在展开 IIFE 里，故置于组件级）
+  const [knownVocab, setKnownVocab] = useState<string[]>([])
+  const [showUnknownOnly, setShowUnknownOnly] = useState(true)
 
   const startEditEntry = (i: number, entry: Record<string, string>) => {
     setEditingEntry(i)
@@ -422,6 +425,10 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
     sPhrasesRef.current = (entry.phrases ?? '') as string
     sCorrRef.current = section('纠错笔记') || section('纠错')
     sNextRef.current = section('下次加难') || section('加难')
+    // 已掌握词块：从 notes 的 **已掌握词块** 段解析
+    const knownSection = section('已掌握词块') || section('已掌握')
+    setKnownVocab(knownSection ? knownSection.split('\n').map((s) => s.trim()).filter(Boolean) : [])
+    setShowUnknownOnly(true)
   }
 
   const saveEditEntry = (i: number) => {
@@ -645,6 +652,7 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
                                 sVocabRef.current ? `**学到的词块**\n${sVocabRef.current}` : '',
                                 sCorrRef.current ? `**纠错笔记**\n${sCorrRef.current}` : '',
                                 sNextRef.current ? `**下次加难**\n${sNextRef.current}` : '',
+                                knownVocab.length ? `**已掌握词块**\n${knownVocab.join('\n')}` : '',
                               ].filter(Boolean).join('\n\n')
                               updateCardEntry(pageId, card.id, i, { phrases: sPhrasesRef.current, notes: combinedNotes })
                               setExpandedScenario(null)
@@ -653,6 +661,16 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
                             }
 
                             const BOX_CLS = "w-full text-[14px] px-3 py-2 border border-accent/30 rounded-md outline-none focus:border-accent bg-white resize-y leading-relaxed"
+                            // ── 词块生词本：chip 列表 + 打叉标记掌握 + 只看不会的 ──
+                            const vocabLines = (sVocabRef.current || '').split('\n').map((s) => s.trim()).filter(Boolean)
+                            const knownSet = new Set(knownVocab)
+                            const unknownLines = vocabLines.filter((l) => !knownSet.has(l))
+                            const knownLines = vocabLines.filter((l) => knownSet.has(l))
+                            // chip 标签：取「单词 + 音标」部分，释义放到 title 悬浮显示，避免 chip 过长
+                            const chipLabel = (line: string) => {
+                              const m = line.match(/^(.*?\])\s/)
+                              return m ? m[1] : line
+                            }
                             const cleanForSpeak = (t: string) => t
                               .replace(/\*\*([^*]+)\*\*/g, '$1') // 去加粗 **
                               .replace(/\/[^/]+\//g, '')          // 去音标 /.../
@@ -684,7 +702,48 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
                                 {/* 四大框 */}
                                 {/* 四大框：一行一个，上下堆叠 */}
                                 <div className="space-y-3">
-                                  {SEC('📝 词块', sVocabRef, 6, cleanForSpeak(sVocabRef.current))}
+                                  <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <span className="text-[13px] font-semibold text-[var(--ink)]">📝 词块（生词本）</span>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[11px] text-[var(--muted)]">已掌握 {knownVocab.length}/{vocabLines.length}</span>
+                                        <SpeakButton text={cleanForSpeak(sVocabRef.current)} className="text-[12px]" title="朗读生词" />
+                                      </div>
+                                    </div>
+                                    {unknownLines.length > 0 && (
+                                      <div className="flex flex-wrap gap-1.5 mb-2">
+                                        {unknownLines.map((line, k) => (
+                                          <span key={'u' + k} title={line}
+                                            className="inline-flex items-center gap-1 text-[12px] px-2 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+                                            {chipLabel(line)}
+                                            <button type="button"
+                                              onClick={() => setKnownVocab((prev) => [...prev, line])}
+                                              className="leading-none text-rose-400 hover:text-rose-700 hover:bg-rose-100 rounded-full w-4 h-4 flex items-center justify-center"
+                                              title="我会了，叉掉">✕</button>
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {!showUnknownOnly && knownLines.length > 0 && (
+                                      <div className="flex flex-wrap gap-1.5 mb-2">
+                                        {knownLines.map((line, k) => (
+                                          <span key={'k' + k} title={line}
+                                            className="inline-flex items-center gap-1 text-[12px] px-2 py-1 rounded-full bg-gray-100 text-gray-400 border border-gray-200 line-through">
+                                            {chipLabel(line)}
+                                            <button type="button"
+                                              onClick={() => setKnownVocab((prev) => prev.filter((x) => x !== line))}
+                                              className="leading-none text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-full w-4 h-4 flex items-center justify-center"
+                                              title="我忘了，恢复">↩</button>
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                    <label className="flex items-center gap-1.5 text-[12px] text-[var(--muted)] cursor-pointer mb-2">
+                                      <input type="checkbox" checked={showUnknownOnly} onChange={(e) => setShowUnknownOnly(e.target.checked)} />
+                                      只看不会的（{unknownLines.length}）
+                                    </label>
+                                    <textarea className={BOX_CLS} value={sVocabRef.current} onChange={(e) => { sVocabRef.current = e.target.value }} rows={6} />
+                                  </div>
                                   {SEC('💬 关键句（每行一句）', sPhrasesRef, 6, cleanDialogue(sPhrasesRef.current))}
                                   {SEC('✅ 纠错', sCorrRef, 5)}
                                   {SEC('🎯 下次加难', sNextRef, 4)}
