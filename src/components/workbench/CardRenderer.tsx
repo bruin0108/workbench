@@ -746,7 +746,7 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
                                   </div>
                                   {SEC('💬 关键句（每行一句）', sPhrasesRef, 6, cleanDialogue(sPhrasesRef.current))}
                                   {SEC('✅ 纠错', sCorrRef, 5)}
-                                  {SEC('🎯 下次加难', sNextRef, 4)}
+                                  {sNextRef.current && SEC('🎯 下次加难', sNextRef, 4)}
                                 </div>
                                 {/* 底部操作栏 */}
                                 <div className="flex items-center gap-2 pt-2 flex-wrap border-t border-accent/10 mt-1">
