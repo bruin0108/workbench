@@ -149,6 +149,19 @@ function unionByTime(local: any[], cloud: any[]): any[] {
   return out
 }
 
+// 英语页固定卡片顺序：Volka → 佩奇 → 测试 → 随手记 → 对话
+// 注入/导入/云端拉取都可能打乱此顺序，统一在此规范化，杜绝手动重排
+const ENG_PAGE_ORDER = ['eng-scenario-map', 'eng-peppa-map', 'eng-weakspots', 'eng-scratch', 'eng-chat']
+function normalizeEngPageOrder(cards: Card[]): Card[] {
+  if (!cards || cards.length === 0) return cards
+  const known = new Set(ENG_PAGE_ORDER)
+  const ordered = ENG_PAGE_ORDER
+    .filter((id) => cards.some((c) => c.id === id))
+    .map((id) => cards.find((c) => c.id === id)!)
+  const rest = cards.filter((c) => !known.has(c.id))
+  return [...ordered, ...rest]
+}
+
 function migrateData(data: { pages: Record<string, Card[]>; projects: Project[]; activity: Activity[]; _version?: number }): boolean {
   const currentVersion = 36
   if (data._version && data._version >= currentVersion) return false
@@ -833,16 +846,15 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
       const pages = get().pages
       const nextPages = { ...pages }
       let changed = false
-      // 英语学习页：纠错卡片 + 移除已确认无用的「学习资源」
+      // 英语学习页：移除已弃用卡片 + 固定卡片顺序
       const eng = pages['life-english']
       if (eng) {
-        const hasCorr = eng.some((c: Card) => c.id === 'eng-corrections')
-        let next = eng.filter((c: Card) => c.id !== 'eng-step2')
-        if (!hasCorr) {
-          const corr = getDefaultCards('life-english').find((c: Card) => c.id === 'eng-corrections')
-          if (corr) next = [...next, corr]
+        let next = eng.filter((c: Card) => c.id !== 'eng-step2' && c.id !== 'eng-corrections')
+        next = normalizeEngPageOrder(next)
+        if (next.length !== eng.length || next.some((c, i) => c.id !== eng[i]?.id)) {
+          nextPages['life-english'] = next
+          changed = true
         }
-        if (next !== eng) { nextPages['life-english'] = next; changed = true }
       }
       // 灵感页：金句 & 感悟卡片（换电脑首次打开也能出现）
       const insp = pages['inspire']
@@ -1280,6 +1292,10 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
           }
         }
         mergedPages[pid] = out
+      }
+      // 英语页固定顺序：云端拉取后立即生效，无需刷新或导入
+      if (mergedPages['life-english']) {
+        mergedPages['life-english'] = normalizeEngPageOrder(mergedPages['life-english'])
       }
       // ---- chatHistory: 按 key 并集，消息多的一方优先 ----
       const mergedChat: Record<string, unknown> = {}
