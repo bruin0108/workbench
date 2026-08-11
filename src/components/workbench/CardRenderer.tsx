@@ -411,6 +411,7 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
   const [knownVocab, setKnownVocab] = useState<string[]>([])
   const [showUnknownOnly, setShowUnknownOnly] = useState(true)
   const [showKnownPanel, setShowKnownPanel] = useState(false)
+  const [revealedPhrases, setRevealedPhrases] = useState<Set<number>>(new Set())
 
   const startEditEntry = (i: number, entry: Record<string, string>) => {
     setEditingEntry(i)
@@ -751,7 +752,60 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
                                     </label>
                                     <textarea className={BOX_CLS} value={showUnknownOnly ? unknownLines.join('\n') : sVocabRef.current} onChange={(e) => { sVocabRef.current = e.target.value }} rows={6} />
                                   </div>
-                                  {SEC('💬 关键句（每行一句）', sPhrasesRef, 6, cleanDialogue(sPhrasesRef.current))}
+                                  {/* 关键句：闪卡模式（默认只显示中文，点击显示英文） */}
+                                  <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <span className="text-[13px] font-semibold text-[var(--ink)]">💬 关键句（每行一句）</span>
+                                      <div className="flex items-center gap-2">
+                                        <button type="button"
+                                          onClick={() => setRevealedPhrases((prev) => {
+                                            const all = new Set(sPhrasesRef.current.split('\n').map((_, i) => i))
+                                            return prev.size === all.size ? new Set() : all
+                                          })}
+                                          className="text-[11px] text-[var(--muted)] hover:text-accent underline decoration-dotted cursor-pointer"
+                                          title={revealedPhrases.size > 0 ? '全部隐藏英文' : '全部显示英文'}>
+                                          {revealedPhrases.size > 0 ? `已显示 ${revealedPhrases.size}` : '点此全显'}
+                                        </button>
+                                        <SpeakButton text={cleanDialogue(sPhrasesRef.current)} className="text-[12px]" title="朗读关键句" />
+                                      </div>
+                                    </div>
+                                    {(() => {
+                                      const lines = (sPhrasesRef.current || '').split('\n').map((s) => s.trim()).filter(Boolean)
+                                      if (lines.length === 0) return null
+                                      return (
+                                        <div className="space-y-1.5">
+                                          {lines.map((line, idx) => {
+                                            const sepIdx = line.indexOf('|')
+                                            const cn = sepIdx >= 0 ? line.slice(0, sepIdx).trim() : line
+                                            const en = sepIdx >= 0 ? line.slice(sepIdx + 1).trim() : ''
+                                            const revealed = revealedPhrases.has(idx)
+                                            return (
+                                              <div
+                                                key={'p' + idx}
+                                                onClick={() => setRevealedPhrases((prev) => { const n = new Set(prev); n.has(idx) ? n.delete(idx) : n.add(idx); return new Set(n) })}
+                                                className={`cursor-pointer select-text rounded-lg border px-3 py-2 text-[13px] leading-relaxed transition-all ${
+                                                  revealed
+                                                    ? 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
+                                                    : 'bg-amber-50/60 border-amber-200 hover:bg-amber-100'
+                                                }`}
+                                                title={revealed ? '点击隐藏英文' : '点击显示英文'}>
+                                                <span className="text-[var(--ink)]">{cn}</span>
+                                                {en && (
+                                                  <>
+                                                    <span className={`mx-2 text-[var(--border)]`}>|</span>
+                                                    <span className={revealed ? 'text-emerald-700' : 'text-transparent'}>{en}</span>
+                                                  </>
+                                                )}
+                                                {!revealed && en && (
+                                                  <span className="ml-1 text-[11px] text-amber-500/70">👆 点击显示</span>
+                                                )}
+                                              </div>
+                                            )
+                                          })}
+                                        </div>
+                                      )
+                                    })()}
+                                  </div>
                                   {SEC('✅ 纠错', sCorrRef, 5)}
                                   {sNextRef.current && SEC('🎯 下次加难', sNextRef, 4)}
                                 </div>
