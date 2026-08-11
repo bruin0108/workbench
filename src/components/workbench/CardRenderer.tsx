@@ -410,6 +410,7 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
   // scenario 词块（生词本）：已掌握词集合 + 只看不会的开关（避免 hooks 嵌套在展开 IIFE 里，故置于组件级）
   const [knownVocab, setKnownVocab] = useState<string[]>([])
   const [showUnknownOnly, setShowUnknownOnly] = useState(true)
+  const [showKnownPanel, setShowKnownPanel] = useState(false)
 
   const startEditEntry = (i: number, entry: Record<string, string>) => {
     setEditingEntry(i)
@@ -706,7 +707,12 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
                                     <div className="flex items-center justify-between mb-1">
                                       <span className="text-[13px] font-semibold text-[var(--ink)]">📝 词块（生词本）</span>
                                       <div className="flex items-center gap-2">
-                                        <span className="text-[11px] text-[var(--muted)]">已掌握 {knownVocab.length}/{vocabLines.length}</span>
+                                        <button type="button"
+                                          onClick={() => setShowKnownPanel((v) => !v)}
+                                          className="text-[11px] text-[var(--muted)] hover:text-accent underline decoration-dotted cursor-pointer"
+                                          title="点击展开/收起已掌握词汇（可逐个恢复）">
+                                          已掌握 {knownVocab.length}/{vocabLines.length}
+                                        </button>
                                         <SpeakButton text={cleanForSpeak(sVocabRef.current)} className="text-[12px]" title="朗读生词" />
                                       </div>
                                     </div>
@@ -724,15 +730,16 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
                                         ))}
                                       </div>
                                     )}
-                                    {!showUnknownOnly && knownLines.length > 0 && (
-                                      <div className="flex flex-wrap gap-1.5 mb-2">
+                                    {showKnownPanel && knownLines.length > 0 && (
+                                      <div className="flex flex-wrap gap-1.5 mb-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
+                                        <div className="w-full text-[11px] text-[var(--muted)] mb-1">点击 ↩ 可逐个恢复（误删补救）</div>
                                         {knownLines.map((line, k) => (
                                           <span key={'k' + k} title={line}
                                             className="inline-flex items-center gap-1 text-[12px] px-2 py-1 rounded-full bg-gray-100 text-gray-400 border border-gray-200 line-through">
                                             {chipLabel(line)}
                                             <button type="button"
                                               onClick={() => setKnownVocab((prev) => prev.filter((x) => x !== line))}
-                                              className="leading-none text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-full w-4 h-4 flex items-center justify-center"
+                                              className="leading-none text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-full w-4 h-4 flex items-center justify-center"
                                               title="我忘了，恢复">↩</button>
                                           </span>
                                         ))}
@@ -742,7 +749,7 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
                                       <input type="checkbox" checked={showUnknownOnly} onChange={(e) => setShowUnknownOnly(e.target.checked)} />
                                       只看不会的（{unknownLines.length}）
                                     </label>
-                                    <textarea className={BOX_CLS} value={sVocabRef.current} onChange={(e) => { sVocabRef.current = e.target.value }} rows={6} />
+                                    <textarea className={BOX_CLS} value={showUnknownOnly ? unknownLines.join('\n') : sVocabRef.current} onChange={(e) => { sVocabRef.current = e.target.value }} rows={6} />
                                   </div>
                                   {SEC('💬 关键句（每行一句）', sPhrasesRef, 6, cleanDialogue(sPhrasesRef.current))}
                                   {SEC('✅ 纠错', sCorrRef, 5)}
