@@ -1069,7 +1069,7 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
                         <div className="px-1 pb-1 space-y-0.5">
                           {groups[groupName].slice(0, 2).map(({ entry, originalIndex: i }) => {
                             const keys = Object.keys(entry)
-                            const qk = keys.find(k => k === 'quote' || k === 'main')
+                            const qk = keys.find(k => k === 'quote' || k === 'main' || k === 'content')
                             const txt = qk && entry[qk] ? mergeBrokenLines(entry[qk]).trim() : ''
                             const short = txt.length > 45 ? txt.slice(0, 42) + '…' : txt
                             return (
@@ -1087,10 +1087,10 @@ export default function CardRenderer({ card, pageId, index, onDragStartCard }: {
                       ) : groups[groupName].map(({ entry, originalIndex: i }) => {
                         const isOpen = openEntries.has(i)
                         const keys = Object.keys(entry)
-                        const quoteKey = keys.find(k => k === 'quote') || keys.find(k => k === 'main')
+                        const quoteKey = keys.find(k => k === 'quote') || keys.find(k => k === 'main') || keys.find(k => k === 'content')
                         const thoughtKey = keys.find(k => k === 'thought')
                         const doneKey = keys.find(k => k === 'done')
-                        const labelKeys = keys.filter(k => k !== 'quote' && k !== 'main' && k !== 'thought' && k !== 'done' && k !== 'project')
+                        const labelKeys = keys.filter(k => k !== 'quote' && k !== 'main' && k !== 'content' && k !== 'thought' && k !== 'done' && k !== 'project')
 
                         // Preview: 取第一句话（以句号/感叹号/问号为界），最多35字
                         const getPreviewText = () => {
