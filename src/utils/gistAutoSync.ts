@@ -67,10 +67,20 @@ async function autoImportInjectCards(token: string, gid: string): Promise<boolea
     let n = 0
     for (const it of p.cards || []) {
       if (!it || !it.page || !it.card || !it.card.id) continue
-      const rm = new Set<string>([...(it.replace || []), it.card.id])
-      const arr = (d.pages[it.page] || []).filter((x: { id: string }) => !rm.has(x.id))
-      arr.push(it.card)
-      d.pages[it.page] = arr
+      const page = it.page
+      if (!d.pages[page]) d.pages[page] = []
+      // 先移除被新卡覆盖的旧 id（replace 列表），避免旧卡残留
+      const rm = new Set<string>(it.replace || [])
+      let arr = d.pages[page].filter((x: { id: string }) => !rm.has(x.id))
+      const idx = arr.findIndex((x: { id: string }) => x.id === it.card.id)
+      if (idx >= 0) {
+        // 已存在 → 原地替换，保持原有位置（不再挪到末尾，避免打乱页面顺序）
+        arr[idx] = it.card
+      } else {
+        // 全新卡 → 追加到末尾
+        arr.push(it.card)
+      }
+      d.pages[page] = arr
       n++
     }
     // 清理列表：删除用户确认可删的卡片（如被新卡合并覆盖的旧空模板卡）
