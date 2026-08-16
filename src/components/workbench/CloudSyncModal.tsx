@@ -74,11 +74,11 @@ export default function CloudSyncModal({ open, onClose }: Props) {
     setPullBusy(true); setError('')
     try {
       const { content } = await pullFromGist(t, gid)
-      // 合并导入：云端 ∪ 本地，避免覆盖本地已有内容
+      // 整卡替换：云端最新 = 云端为准，避免与本地种子默认卡并集产生重复条目
       skipAutoPushOnce() // 拉取就是拉取，禁止自动回推
-      const ok = useWorkbenchStore.getState().mergeFromCloud(content)
+      const ok = useWorkbenchStore.getState().importData(content)
       if (!ok) throw new Error('导入失败：数据格式不正确')
-      toast('已与云端合并，正在刷新…')
+      toast('已用云端最新数据覆盖本地，正在刷新…')
       setTimeout(() => window.location.reload(), 800)
     } catch (e: any) {
       setError(e?.message || '拉取失败'); setPullBusy(false)

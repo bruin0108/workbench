@@ -102,9 +102,13 @@ export async function autoPullOnLoad() {
   try {
     const { content, syncedAt } = await pullFromGist(t, gid)
     const local = getLocalModified()
-    if (syncedAt > local) {
-      // 合并导入（云端 ∪ 本地），避免覆盖本地已有内容
-      const ok = useWorkbenchStore.getState().mergeFromCloud(content)
+    // 本地主数据被清空（用户手动 removeItem 或首次打开）时，整卡替换云端数据，
+    // 避免与内置种子默认卡做并集导致重复条目；否则按时间戳并集合并，保留本地编辑
+    const noLocal = !localStorage.getItem(STORAGE_KEY)
+    if (syncedAt > local || noLocal) {
+      const ok = noLocal
+        ? useWorkbenchStore.getState().importData(content)
+        : useWorkbenchStore.getState().mergeFromCloud(content)
       if (ok) {
         setLocalModified(syncedAt)
         changed = true
