@@ -3,6 +3,7 @@ import { useWorkbenchStore } from '@/store/workbenchStore'
 import { getReminderSettings, saveReminderSettings, requestNotificationPermission, startReminderLoop, stopReminderLoop } from '@/utils/reminder'
 import { pickSyncFile } from '@/utils/autoSync'
 import SpeakButton from './SpeakButton'
+import { REVIEW_SENTENCES } from '@/data/reviewSentences'
 
 // --- User name (from localStorage) ---
 function getUserName(): string {
@@ -186,8 +187,25 @@ function TodayFocus({ pages }: { pages: Record<string, CardMini[]> }) {
     usedSources.add(s.source)
   }
 
-  // Fallback: if no content at all, show a gentle prompt
+  // Fallback: if no extracted snippets (e.g. scenario notes empty / peppa id mismatch),
+  // pull from the static practiced-sentences list so the homepage always shows something useful.
   const isEmpty = picked.length === 0
+  let displayItems = picked
+  if (isEmpty && REVIEW_SENTENCES.length > 0) {
+    const all: typeof snippets = []
+    REVIEW_SENTENCES.forEach((g) => {
+      g.sentences.forEach((s) => {
+        all.push({ text: s, source: g.scene, type: 'dialogue' })
+      })
+    })
+    const start = daySeed % all.length
+    const take: typeof snippets = []
+    for (let i = 0; i < 3 && all.length > 0; i++) {
+      take.push(all[(start + i) % all.length])
+    }
+    displayItems = take
+  }
+  const trulyEmpty = displayItems.length === 0
 
   return (
     <div className="bg-white dark:bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-4 mb-4 animate-fade-in">
@@ -196,13 +214,13 @@ function TodayFocus({ pages }: { pages: Record<string, CardMini[]> }) {
         <div className="text-[10px] text-[var(--muted)]/60">{dateStr}</div>
       </div>
 
-      {isEmpty ? (
+      {trulyEmpty ? (
         <div className="text-[13px] text-[var(--muted)]/60 leading-relaxed py-2 text-center">
           开始一场英语对话，这里就会显示你练过的内容 ✨
         </div>
       ) : (
         <div className="space-y-2.5">
-          {picked.map((item, i) => (
+          {displayItems.map((item, i) => (
             <div key={i} className="flex items-start gap-2 p-2.5 rounded-lg bg-[var(--bg-rule)]/40 hover:bg-[var(--bg-rule)]/60 transition-colors">
               <span className="text-xs mt-0.5 shrink-0">
                 {item.type === 'dialogue' ? '💬' : item.type === 'peppa' ? '🐷' : item.type === 'review' ? '📝' : '📌'}
