@@ -4,6 +4,7 @@ import { generateChat } from '@/utils/ai'
 import { Markdown } from './Markdown'
 import { autoFormatText } from '@/utils/autoFormat'
 import SpeakButton from './SpeakButton'
+import { REVIEW_SENTENCES } from '@/data/reviewSentences'
 
 const TOPIC_PROMPTS: Record<string, string> = {
   theory: '你是一个企业培训领域的知识专家。用户会向你咨询培训模型、方法论、教学设计相关问题。请用专业但易懂的中文回答，给出具体例子和应用场景。',
@@ -116,7 +117,29 @@ export default function AskAI({ pageId }: { pageId: string }) {
         </div>
       )}
 
-      {chat.length === 0 && !loading && (
+      {chat.length === 0 && !loading && pageId === 'life-english' && (
+        <div className="mb-3">
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className="text-[12px] font-semibold text-ink">📖 练过的句子</span>
+            <span className="text-[10px] text-muted">点 🔊 朗读 · 地铁上跟读</span>
+          </div>
+          <div className="max-h-[320px] overflow-y-auto space-y-2.5 pr-1">
+            {REVIEW_SENTENCES.map((g) => (
+              <div key={g.scene}>
+                <div className="text-[11px] font-semibold text-[var(--accent2)] mb-0.5">{g.scene}</div>
+                {g.sentences.map((s, i) => (
+                  <div key={i} className="flex items-start justify-between gap-2 py-1 px-2 rounded-md">
+                    <span className="text-[13px] text-ink leading-snug select-text">{s}</span>
+                    <SpeakButton text={s} className="text-[13px] shrink-0 mt-0.5" title="朗读这句" />
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {chat.length === 0 && !loading && pageId !== 'life-english' && (
         <div className="text-center py-8 mb-2">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-accent/8 mb-3"><Sparkles size={22} className="text-accent" /></div>
           <p className="text-[14px] text-muted leading-relaxed max-w-[280px] mx-auto">{pi.desc}</p>
